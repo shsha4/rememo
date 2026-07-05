@@ -16,20 +16,31 @@ function VaultPage() {
     }
 
     try {
+      console.log('[VaultPage] Starting vault creation...');
       const folderPath = await electronAPI.vault.selectFolder();
+      console.log('[VaultPage] Selected folder:', folderPath);
+
       if (!folderPath) {
+        console.log('[VaultPage] No folder selected, aborting');
         return;
       }
 
+      console.log('[VaultPage] Creating vault at:', folderPath, 'with name:', vaultName.trim());
       const vault = await electronAPI.vault.create(folderPath, vaultName.trim());
+      console.log('[VaultPage] Vault created successfully:', vault);
 
       // Start indexing and watching the vault
+      console.log('[VaultPage] Starting indexing for vault:', vault.path);
       await electronAPI.indexer.indexVault(vault.path, vault.id);
+      console.log('[VaultPage] Starting file watcher for vault:', vault.path);
       await electronAPI.indexer.startWatching(vault.path, vault.id);
 
+      console.log('[VaultPage] Setting current vault and adding to recent vaults');
       setCurrentVault(vault);
       addRecentVault(vault.path);
+      console.log('[VaultPage] Vault creation completed successfully!');
     } catch (err: any) {
+      console.error('[VaultPage] Error creating vault:', err);
       setError(err.message || 'Failed to create vault');
     }
   };

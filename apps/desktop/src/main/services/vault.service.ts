@@ -9,15 +9,20 @@ const MEMOGRAPH_DIR = '.memograph';
 
 export class VaultService {
   async createVault(vaultPath: string, name: string): Promise<Vault> {
+    console.log('[VaultService] Creating vault at:', vaultPath, 'with name:', name);
+
     const exists = await fileService.directoryExists(vaultPath);
     if (!exists) {
+      console.log('[VaultService] Directory does not exist, creating:', vaultPath);
       await fileService.createDirectory(vaultPath);
     }
 
     const vaultConfigPath = path.join(vaultPath, VAULT_CONFIG_FILE);
+    console.log('[VaultService] Checking for existing vault.json at:', vaultConfigPath);
     const configExists = await fileService.fileExists(vaultConfigPath);
 
     if (configExists) {
+      console.error('[VaultService] Vault already exists at:', vaultPath);
       throw new VaultAlreadyExistsError(vaultPath);
     }
 
@@ -39,11 +44,13 @@ export class VaultService {
       config,
     };
 
+    console.log('[VaultService] Creating vault structure...');
     // Create necessary directories
     const notesDir = path.join(vaultPath, config.defaultNoteLocation!);
     const assetsDir = path.join(vaultPath, config.defaultAssetLocation!);
     const memographDir = path.join(vaultPath, MEMOGRAPH_DIR);
 
+    console.log('[VaultService] Creating directories:', { notesDir, assetsDir, memographDir });
     await Promise.all([
       fileService.createDirectory(notesDir),
       fileService.createDirectory(assetsDir),
@@ -51,8 +58,10 @@ export class VaultService {
     ]);
 
     // Write vault config
+    console.log('[VaultService] Writing vault.json to:', vaultConfigPath);
     await fileService.writeFile(vaultConfigPath, JSON.stringify(config, null, 2));
 
+    console.log('[VaultService] Vault created successfully:', vault);
     return vault;
   }
 
