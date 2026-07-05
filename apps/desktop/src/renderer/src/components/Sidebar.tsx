@@ -7,7 +7,7 @@ import './Sidebar.css';
 
 function Sidebar() {
   const { currentVault } = useVaultStore();
-  const { notes, setNotes, setCurrentNote, currentNote } = useNoteStore();
+  const { notes, setNotes, setCurrentNote, currentNote, triggerGraphRefresh } = useNoteStore();
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [newNoteName, setNewNoteName] = useState('');
   const [editingNotePath, setEditingNotePath] = useState<string | null>(null);
@@ -117,6 +117,8 @@ function Sidebar() {
       setEditingNotePath(null);
       setEditingNoteName('');
       await loadNotes();
+      // Trigger graph refresh to update entity mentions
+      triggerGraphRefresh();
     } catch (error: any) {
       console.error('Failed to rename note:', error);
       alert(error.message || 'Failed to rename note');

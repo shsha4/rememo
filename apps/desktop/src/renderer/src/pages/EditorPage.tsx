@@ -16,7 +16,7 @@ interface EditorPageProps {
 }
 
 function EditorPage({ onNoteDeleted }: EditorPageProps) {
-  const { currentNote, setCurrentNote } = useNoteStore();
+  const { currentNote, setCurrentNote, triggerGraphRefresh } = useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -45,6 +45,8 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
         currentVault.path
       );
       setCurrentNote(updatedNote);
+      // Trigger graph refresh to update entity mentions
+      triggerGraphRefresh();
     } catch (error: any) {
       console.error('Failed to save note:', error);
       alert(error.message || '메모 저장에 실패했습니다');

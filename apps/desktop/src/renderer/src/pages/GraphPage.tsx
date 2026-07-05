@@ -124,7 +124,7 @@ interface GraphPageProps {
 
 function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const { currentVault } = useVaultStore();
-  const { setCurrentNote, notes } = useNoteStore();
+  const { setCurrentNote, notes, graphRefreshTrigger } = useNoteStore();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
@@ -144,6 +144,13 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       loadGraphData();
     }
   }, [notes]);
+
+  // Reload graph when graphRefreshTrigger changes (after note content update)
+  useEffect(() => {
+    if (currentVault && graphRefreshTrigger > 0) {
+      loadGraphData();
+    }
+  }, [graphRefreshTrigger]);
 
   const loadGraphData = async () => {
     if (!currentVault) return;
