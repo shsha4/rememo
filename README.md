@@ -22,11 +22,11 @@ Local-first Markdown Knowledge Graph Desktop Application
 - 기본 텍스트 에디터
 - Ctrl+S 저장 기능
 
-### 🔜 Phase 4: Editor
+### ✅ Phase 4: Editor (완료)
 - CodeMirror6 통합
-- Markdown Preview
-- Split View
-- 저장 기능
+- Markdown Preview (react-markdown + remark-gfm)
+- Split View (Edit/Preview/Split 모드)
+- Ctrl+S 저장 기능
 
 ### 🔜 Phase 5: Markdown Parser
 - WikiLink 파싱 (`[[link]]`)

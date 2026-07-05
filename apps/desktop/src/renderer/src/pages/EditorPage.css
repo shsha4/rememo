@@ -22,6 +22,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .editor-header h3 {
@@ -29,6 +30,46 @@
   font-weight: 600;
   color: #d4d4d4;
   margin: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.view-mode-switcher {
+  display: flex;
+  gap: 0.25rem;
+  background-color: #252526;
+  border: 1px solid #3e3e3e;
+  border-radius: 4px;
+  padding: 0.25rem;
+}
+
+.mode-btn {
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: none;
+  color: #858585;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  background-color: #2a2a2a;
+  color: #d4d4d4;
+}
+
+.mode-btn.active {
+  background-color: #569cd6;
+  color: #ffffff;
 }
 
 .btn-save {
@@ -40,6 +81,7 @@
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
 .btn-save:hover:not(:disabled) {
@@ -53,22 +95,23 @@
 
 .editor-content {
   flex: 1;
-  padding: 0;
   overflow: hidden;
 }
 
-.markdown-editor {
-  width: 100%;
+.split-view {
+  display: flex;
   height: 100%;
-  background-color: #1e1e1e;
-  color: #d4d4d4;
-  border: none;
-  padding: 1.5rem;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 1rem;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
+}
+
+.split-pane {
+  flex: 1;
+  overflow: hidden;
+}
+
+.split-divider {
+  width: 2px;
+  background-color: #3e3e3e;
+  cursor: col-resize;
 }
 
 .editor-empty {

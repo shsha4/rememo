@@ -1,23 +1,28 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import MarkdownEditor from '../components/MarkdownEditor';
+import MarkdownPreview from '../components/MarkdownPreview';
 import { useNoteStore } from '../stores/note.store';
 import { useVaultStore } from '../stores/vault.store';
 import { electronAPI } from '../api/electron-api';
 import './EditorPage.css';
+
+type ViewMode = 'edit' | 'preview' | 'split';
 
 function EditorPage() {
   const { currentNote, setCurrentNote } = useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('edit');
 
   // Update content when note changes
   useEffect(() => {
     setContent(currentNote?.content || '');
   }, [currentNote]);
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+  const handleContentChange = (value: string) => {
+    setContent(value);
   };
 
   const handleSave = async () => {
@@ -39,10 +44,24 @@ function EditorPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      handleSave();
+  const renderEditor = () => {
+    switch (viewMode) {
+      case 'edit':
+        return <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />;
+      case 'preview':
+        return <MarkdownPreview content={content} />;
+      case 'split':
+        return (
+          <div className="split-view">
+            <div className="split-pane">
+              <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />
+            </div>
+            <div className="split-divider" />
+            <div className="split-pane">
+              <MarkdownPreview content={content} />
+            </div>
+          </div>
+        );
     }
   };
 
@@ -56,22 +75,41 @@ function EditorPage() {
             <>
               <div className="editor-header">
                 <h3>{currentNote.title}</h3>
-                <button
-                  className="btn-save"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? 'Saving...' : 'Save (Ctrl+S)'}
-                </button>
+                <div className="editor-actions">
+                  <div className="view-mode-switcher">
+                    <button
+                      className={`mode-btn ${viewMode === 'edit' ? 'active' : ''}`}
+                      onClick={() => setViewMode('edit')}
+                      title="Edit Mode"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className={`mode-btn ${viewMode === 'split' ? 'active' : ''}`}
+                      onClick={() => setViewMode('split')}
+                      title="Split View"
+                    >
+                      Split
+                    </button>
+                    <button
+                      className={`mode-btn ${viewMode === 'preview' ? 'active' : ''}`}
+                      onClick={() => setViewMode('preview')}
+                      title="Preview Mode"
+                    >
+                      Preview
+                    </button>
+                  </div>
+                  <button
+                    className="btn-save"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save (Ctrl+S)'}
+                  </button>
+                </div>
               </div>
               <div className="editor-content">
-                <textarea
-                  className="markdown-editor"
-                  value={content}
-                  onChange={handleContentChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Start writing..."
-                />
+                {renderEditor()}
               </div>
             </>
           ) : (
