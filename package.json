@@ -1,0 +1,27 @@
+{
+  "name": "memograph",
+  "version": "0.1.0",
+  "description": "Local-first Markdown Knowledge Graph Desktop Application",
+  "private": true,
+  "workspaces": [
+    "apps/desktop",
+    "packages/core"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/desktop",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=apps/desktop",
+    "lint": "eslint . --ext .ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
