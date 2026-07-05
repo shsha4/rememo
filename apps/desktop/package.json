@@ -3,13 +3,58 @@
   "version": "0.1.0",
   "description": "MemoGraph Desktop Application",
   "main": "dist/main/index.js",
+  "author": "rememo",
+  "productName": "rememo",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "build:win32": "npm run build && electron-builder --win --ia32",
+    "build:win-all": "npm run build && electron-builder --win --x64 --ia32",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.rememo.desktop",
+    "productName": "rememo",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "rememo"
+    },
+    "extraResources": [
+      {
+        "from": "node_modules/better-sqlite3",
+        "to": "better-sqlite3",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",
