@@ -28,11 +28,11 @@ Local-first Markdown Knowledge Graph Desktop Application
 - Split View (Edit/Preview/Split 모드)
 - Ctrl+S 저장 기능
 
-### 🔜 Phase 5: Markdown Parser
-- WikiLink 파싱 (`[[link]]`)
-- Alias 지원 (`[[link|alias]]`)
-- Heading Link (`[[note#heading]]`)
-- Tag 추출 (`#tag`)
+### ✅ Phase 5: Markdown Parser (완료)
+- WikiLink 파싱 (`[[link]]`, `[[link|alias]]`, `[[link#heading]]`)
+- Tag 파싱 (`#tag`, `#nested/tag`)
+- YAML Front Matter 파싱
+- Position tracking (line numbers)
 
 ### 🔜 Phase 6: Indexer + SQLite
 - SQLite 설정
