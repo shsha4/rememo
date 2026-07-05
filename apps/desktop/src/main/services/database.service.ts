@@ -223,6 +223,15 @@ export class DatabaseService {
     return results.map(r => r.title);
   }
 
+  getTitleToPathMap(vaultPath: string): Map<string, string> {
+    const db = this.getDatabase(vaultPath);
+    const stmt = db.prepare('SELECT title, path FROM notes');
+    const results = stmt.all() as Array<{ title: string; path: string }>;
+    const map = new Map<string, string>();
+    results.forEach(r => map.set(r.title, r.path));
+    return map;
+  }
+
   // Graph data
   getGraphData(vaultPath: string): { nodes: any[], edges: any[] } {
     const db = this.getDatabase(vaultPath);

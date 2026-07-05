@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
@@ -26,12 +26,45 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (currentVault) {
       loadTags();
     }
   }, [currentVault]);
+
+  // Reset query and results when search mode changes
+  useEffect(() => {
+    setQuery('');
+    setResults([]);
+  }, [searchMode]);
+
+  // Real-time search with debounce
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Don't search if query is empty
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+
+    // Set new debounced search
+    debounceTimerRef.current = setTimeout(() => {
+      handleSearch();
+    }, 300); // 300ms debounce
+
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [query, searchMode, currentVault]);
 
   const loadTags = async () => {
     if (!currentVault) return;

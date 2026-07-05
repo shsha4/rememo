@@ -66,9 +66,21 @@
   background: var(--accent-primary);
 }
 
-/* Selected state */
+/* Highlight states */
 .custom-graph-node.selected {
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4), 0 0 0 3px var(--accent-primary);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.6), 0 8px 30px rgba(0, 0, 0, 0.3);
+  z-index: 1000 !important;
+}
+
+.custom-graph-node.highlighted {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.4), 0 6px 25px rgba(0, 0, 0, 0.25);
+}
+
+.custom-graph-node.dimmed {
+  opacity: 0.25;
+  filter: grayscale(0.7);
 }
 
 /* Animated pulse for root nodes */

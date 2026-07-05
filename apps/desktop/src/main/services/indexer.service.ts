@@ -217,14 +217,23 @@ export class IndexerService {
 
   private resolveLinkPath(linkText: string, currentNotePath: string, vaultPath: string): string {
     // Remove heading reference if present
-    const cleanLinkText = linkText.split('#')[0];
+    const cleanLinkText = linkText.split('#')[0].trim();
 
-    // If it's an absolute path from vault root
-    if (!cleanLinkText.includes('/')) {
-      return path.join(vaultPath, 'Notes', `${cleanLinkText}.md`);
+    // Get title-to-path mapping from database
+    const titleToPath = databaseService.getTitleToPathMap(vaultPath);
+
+    // Try to find exact match by title
+    if (titleToPath.has(cleanLinkText)) {
+      return titleToPath.get(cleanLinkText)!;
     }
 
-    // If it's a relative path
+    // If it contains path separators, treat as relative path
+    if (cleanLinkText.includes('/') || cleanLinkText.includes('\\')) {
+      const currentDir = path.dirname(currentNotePath);
+      return path.join(currentDir, `${cleanLinkText}.md`);
+    }
+
+    // Fallback: assume it's in the same directory as current note
     const currentDir = path.dirname(currentNotePath);
     return path.join(currentDir, `${cleanLinkText}.md`);
   }

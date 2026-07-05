@@ -14,6 +14,7 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    title: 'rememo',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

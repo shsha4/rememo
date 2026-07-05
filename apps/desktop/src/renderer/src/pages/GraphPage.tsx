@@ -4,9 +4,11 @@ import ReactFlow, {
   Edge,
   Controls,
   Background,
+  MiniMap,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
+  NodeMouseHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
@@ -126,6 +128,8 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load graph data when component mounts or vault changes
   useEffect(() => {
@@ -191,8 +195,79 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     }
   };
 
+  // Highlight connected nodes and edges
+  const highlightedElements = useMemo(() => {
+    if (!selectedNode) {
+      return { nodes: new Set<string>(), edges: new Set<string>() };
+    }
+
+    const connectedNodes = new Set<string>([selectedNode]);
+    const connectedEdges = new Set<string>();
+
+    edges.forEach((edge) => {
+      if (edge.source === selectedNode || edge.target === selectedNode) {
+        connectedEdges.add(edge.id);
+        connectedNodes.add(edge.source);
+        connectedNodes.add(edge.target);
+      }
+    });
+
+    return { nodes: connectedNodes, edges: connectedEdges };
+  }, [selectedNode, edges]);
+
+  // Apply highlighting to nodes and edges
+  const displayNodes = useMemo(() => {
+    return nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        isHighlighted: highlightedElements.nodes.has(node.id),
+        isSelected: node.id === selectedNode,
+        isDimmed: selectedNode !== null && !highlightedElements.nodes.has(node.id),
+      },
+    }));
+  }, [nodes, highlightedElements, selectedNode]);
+
+  const displayEdges = useMemo(() => {
+    return edges.map((edge) => ({
+      ...edge,
+      animated: highlightedElements.edges.has(edge.id),
+      style: {
+        ...edge.style,
+        opacity: selectedNode === null || highlightedElements.edges.has(edge.id) ? 1 : 0.2,
+        strokeWidth: highlightedElements.edges.has(edge.id) ? 3 : 2,
+      },
+    }));
+  }, [edges, highlightedElements, selectedNode]);
+
+  // Filter nodes by search query
+  const filteredNodes = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return displayNodes;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return displayNodes.filter((node) =>
+      node.data.label.toLowerCase().includes(query)
+    );
+  }, [displayNodes, searchQuery]);
+
+  const filteredEdges = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return displayEdges;
+    }
+
+    const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+    return displayEdges.filter(
+      (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    );
+  }, [displayEdges, filteredNodes, searchQuery]);
+
   const onNodeClick = useCallback(async (_event: any, node: Node) => {
     if (!currentVault) return;
+
+    // Toggle selection
+    setSelectedNode((prev) => (prev === node.id ? null : node.id));
 
     try {
       // node.id is the note path
@@ -205,10 +280,29 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     }
   }, [currentVault, setCurrentNote, onNavigateToEditor]);
 
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, node) => {
+    setSelectedNode(node.id);
+  }, []);
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
   return (
     <div className="graph-page">
       <div className="graph-header">
         <h2>지식 그래프</h2>
+        <input
+          type="text"
+          className="graph-search"
+          placeholder="노트 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {loading ? (
@@ -216,18 +310,32 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       ) : (
         <div className="graph-container">
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={filteredNodes}
+            edges={filteredEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
+            nodesDraggable={true}
             fitView
-            minZoom={0.2}
-            maxZoom={2}
+            minZoom={0.1}
+            maxZoom={4}
           >
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--border-primary)" />
             <Controls />
+            <MiniMap
+              nodeColor={(node) => {
+                const customData = node.data as any;
+                if (customData.isSelected) return 'var(--accent-primary)';
+                if (customData.isHighlighted) return 'var(--accent-secondary)';
+                if (customData.isDimmed) return 'rgba(255, 255, 255, 0.2)';
+                return 'var(--text-secondary)';
+              }}
+              maskColor="rgba(0, 0, 0, 0.6)"
+            />
           </ReactFlow>
         </div>
       )}

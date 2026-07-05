@@ -25,6 +25,27 @@
   letter-spacing: -0.03em;
 }
 
+.graph-search {
+  padding: 0.65rem 1.25rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  min-width: 250px;
+  transition: all 0.3s;
+}
+
+.graph-search:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.graph-search::placeholder {
+  color: var(--text-tertiary);
+}
+
 .btn-refresh {
   padding: 0.65rem 1.25rem;
   background: var(--accent-gradient);
@@ -145,4 +166,23 @@
 .react-flow__attribution {
   background: transparent;
   opacity: 0.3;
+}
+
+/* MiniMap */
+.react-flow__minimap {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.6) !important;
+}
+
+.react-flow__minimap-node {
+  fill: var(--text-tertiary) !important;
+  stroke: var(--border-primary) !important;
 }

@@ -5,10 +5,16 @@ import './CustomGraphNode.css';
 interface CustomNodeData {
   label: string;
   depth: number;
+  isHighlighted?: boolean;
+  isSelected?: boolean;
+  isDimmed?: boolean;
 }
 
 function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
   const depth = data.depth || 0;
+  const isHighlighted = data.isHighlighted || false;
+  const isSelected = data.isSelected || false;
+  const isDimmed = data.isDimmed || false;
 
   // Generate color based on depth
   const getDepthColor = (d: number) => {
@@ -22,9 +28,16 @@ function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
     return colors[Math.min(d, colors.length - 1)];
   };
 
+  const className = [
+    'custom-graph-node',
+    isSelected && 'selected',
+    isHighlighted && 'highlighted',
+    isDimmed && 'dimmed',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className="custom-graph-node"
+      className={className}
       style={{
         '--node-color': getDepthColor(depth),
         '--node-depth': depth,
