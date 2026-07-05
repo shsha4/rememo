@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Note } from '@memograph/core';
+import type { Note } from '../types';
 
 interface NoteState {
   notes: string[];

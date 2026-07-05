@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { KeyboardEvent } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -19,7 +20,7 @@ function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps) {
   );
 
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
+    (event: KeyboardEvent<HTMLDivElement>) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault();
         onSave?.();

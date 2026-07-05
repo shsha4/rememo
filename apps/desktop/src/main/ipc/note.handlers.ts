@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { noteService } from '../services/note.service';
-import type { NoteCreateInput, NoteUpdateInput } from '@memograph/core';
+import type { NoteCreateInput, NoteUpdateInput } from '../domain/note';
 
 export function setupNoteHandlers() {
   ipcMain.handle('note:create', async (_event, input: NoteCreateInput) => {

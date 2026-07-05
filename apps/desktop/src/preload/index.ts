@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Vault, VaultConfig, Note, NoteCreateInput, NoteUpdateInput } from '@memograph/core';
+import type { Vault, VaultConfig } from '../main/domain/vault';
+import type { Note, NoteCreateInput, NoteUpdateInput } from '../main/domain/note';
 
 export interface ElectronAPI {
   ping: () => Promise<string>;

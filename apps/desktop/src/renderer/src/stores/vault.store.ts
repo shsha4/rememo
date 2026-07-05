@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Vault } from '@memograph/core';
+import type { Vault } from '../types';
 
 interface VaultState {
   currentVault: Vault | null;

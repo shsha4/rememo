@@ -18,7 +18,10 @@ export default defineConfig({
               formats: ['cjs'],
             },
             rollupOptions: {
-              external: ['electron', 'better-sqlite3'],
+              external: ['electron'],
+            },
+            commonjsOptions: {
+              transformMixedEsModules: true,
             },
           },
         },
@@ -47,7 +50,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src/renderer/src'),
-      '@memograph/core': path.resolve(__dirname, '../../packages/core/src'),
     },
   },
   server: {

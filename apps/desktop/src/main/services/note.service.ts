@@ -1,4 +1,5 @@
-import { Note, NoteCreateInput, NoteUpdateInput, NoteNotFoundError, NoteAlreadyExistsError } from '@memograph/core';
+import type { Note, NoteCreateInput, NoteUpdateInput } from '../domain/note';
+import { NoteNotFoundError, NoteAlreadyExistsError } from '../domain/note';
 import { fileService } from './file.service';
 import path from 'path';
 import crypto from 'crypto';
