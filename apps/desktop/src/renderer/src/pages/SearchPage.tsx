@@ -70,11 +70,23 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
     }
   };
 
-  const handleTagClick = (tag: string) => {
+  const handleTagClick = async (tag: string) => {
+    if (!currentVault) return;
+
     setSearchMode('tags');
     setQuery(tag);
-    // Trigger search with the tag
-    setTimeout(() => handleSearch(), 100);
+
+    // Directly search with the tag without waiting for state update
+    setLoading(true);
+    try {
+      const searchResults = await electronAPI.indexer.searchByTag(currentVault.path, tag);
+      setResults(searchResults);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResultClick = async (result: SearchResult) => {

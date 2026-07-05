@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
+import Logo from '../components/Logo';
 import './VaultPage.css';
 
 function VaultPage() {
@@ -122,8 +123,11 @@ function VaultPage() {
   return (
     <div className="vault-page">
       <div className="vault-header">
-        <h1>MemoGraph</h1>
-        <p className="subtitle">로컬 우선 마크다운 지식 그래프</p>
+        <div className="logo-container">
+          <Logo size={80} />
+        </div>
+        <h1>Rememo</h1>
+        <p className="subtitle">기억을 연결하는 지식 그래프</p>
       </div>
 
       <div className="vault-content">

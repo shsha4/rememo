@@ -10,6 +10,7 @@ type Page = 'vault' | 'editor' | 'graph' | 'search';
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('vault');
   const [pageKey, setPageKey] = useState(0);
+  const [appKey, setAppKey] = useState(0);
   const { currentVault, loadRecentVaults } = useVaultStore();
 
   useEffect(() => {
@@ -26,6 +27,11 @@ function App() {
 
   const handlePageChange = (page: Page) => {
     setCurrentPage(page);
+    setPageKey(prev => prev + 1);
+  };
+
+  const handleNoteDeleted = () => {
+    setAppKey(prev => prev + 1);
     setPageKey(prev => prev + 1);
   };
 
@@ -64,7 +70,7 @@ function App() {
         return (
           <>
             {renderNavBar()}
-            <EditorPage />
+            <EditorPage key={`editor-${appKey}`} onNoteDeleted={handleNoteDeleted} />
           </>
         );
       case 'graph':

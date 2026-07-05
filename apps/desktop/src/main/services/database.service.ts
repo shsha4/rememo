@@ -45,6 +45,12 @@ export class DatabaseService {
     metadata?: Record<string, unknown>;
   }): void {
     const db = this.getDatabase(vaultPath);
+
+    // Check if note exists by path
+    const existing = db.prepare('SELECT id FROM notes WHERE path = ?').get(note.path) as { id: string } | undefined;
+    const noteId = existing ? existing.id : note.id;
+
+    // Use the existing id if found, otherwise use the provided id
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO notes (
         id, vault_id, title, path, content, content_hash, created_at, updated_at, metadata
@@ -52,7 +58,7 @@ export class DatabaseService {
     `);
 
     stmt.run(
-      note.id,
+      noteId,
       note.vaultId,
       note.title,
       note.path,
@@ -66,8 +72,18 @@ export class DatabaseService {
 
   deleteNote(vaultPath: string, notePath: string): void {
     const db = this.getDatabase(vaultPath);
-    const stmt = db.prepare('DELETE FROM notes WHERE path = ?');
-    stmt.run(notePath);
+
+    // Delete from notes table
+    const deleteNoteStmt = db.prepare('DELETE FROM notes WHERE path = ?');
+    deleteNoteStmt.run(notePath);
+
+    // Delete all links where this note is source or target
+    const deleteLinksStmt = db.prepare('DELETE FROM links WHERE source_note_path = ? OR target_note_path = ?');
+    deleteLinksStmt.run(notePath, notePath);
+
+    // Delete all tags for this note
+    const deleteTagsStmt = db.prepare('DELETE FROM tags WHERE note_path = ?');
+    deleteTagsStmt.run(notePath);
   }
 
   getNoteByPath(vaultPath: string, notePath: string): any {

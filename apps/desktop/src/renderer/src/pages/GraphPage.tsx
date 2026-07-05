@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -13,6 +13,7 @@ import dagre from 'dagre';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
+import CustomGraphNode from '../components/CustomGraphNode';
 import './GraphPage.css';
 
 interface GraphData {
@@ -21,7 +22,58 @@ interface GraphData {
 }
 
 const nodeWidth = 180;
-const nodeHeight = 60;
+const nodeHeight = 80;
+
+const nodeTypes = {
+  custom: CustomGraphNode,
+};
+
+// Calculate node depth using BFS
+const calculateNodeDepths = (nodes: Node[], edges: Edge[]): Map<string, number> => {
+  const depths = new Map<string, number>();
+  const adjacency = new Map<string, string[]>();
+
+  // Build adjacency list
+  edges.forEach(edge => {
+    if (!adjacency.has(edge.source)) {
+      adjacency.set(edge.source, []);
+    }
+    adjacency.get(edge.source)!.push(edge.target);
+  });
+
+  // Find root nodes (nodes with no incoming edges)
+  const incomingCount = new Map<string, number>();
+  edges.forEach(edge => {
+    incomingCount.set(edge.target, (incomingCount.get(edge.target) || 0) + 1);
+  });
+
+  const roots = nodes.filter(node => !incomingCount.has(node.id));
+
+  // BFS to assign depths
+  const queue: Array<{ id: string; depth: number }> = roots.map(node => ({ id: node.id, depth: 0 }));
+
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift()!;
+
+    if (!depths.has(id)) {
+      depths.set(id, depth);
+
+      const children = adjacency.get(id) || [];
+      children.forEach(childId => {
+        queue.push({ id: childId, depth: depth + 1 });
+      });
+    }
+  }
+
+  // Assign depth 0 to any remaining nodes
+  nodes.forEach(node => {
+    if (!depths.has(node.id)) {
+      depths.set(node.id, 0);
+    }
+  });
+
+  return depths;
+};
 
 // Dagre layout function for hierarchical graph
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
@@ -30,7 +82,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
 
   // Configure dagre layout
   dagreGraph.setGraph({
-    rankdir: 'TB', // Top to Bottom
+    rankdir: 'BT', // Bottom to Top (root nodes at top)
     ranksep: 100,   // Vertical spacing between ranks
     nodesep: 80,    // Horizontal spacing between nodes
     edgesep: 50,
@@ -70,7 +122,7 @@ interface GraphPageProps {
 
 function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const { currentVault } = useVaultStore();
-  const { setCurrentNote } = useNoteStore();
+  const { setCurrentNote, notes } = useNoteStore();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
@@ -82,12 +134,12 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     }
   }, [currentVault]);
 
-  // Reload graph data every time the component mounts (page becomes visible)
+  // Reload graph when notes change (real-time update)
   useEffect(() => {
     if (currentVault) {
       loadGraphData();
     }
-  }, []);
+  }, [notes]);
 
   const loadGraphData = async () => {
     if (!currentVault) return;
@@ -99,19 +151,9 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       // Transform data into React Flow format (without positions initially)
       const flowNodes: Node[] = data.nodes.map((node) => ({
         id: node.path,
-        type: 'default',
-        data: { label: node.title },
+        type: 'custom',
+        data: { label: node.title, depth: 0 },
         position: { x: 0, y: 0 }, // Will be calculated by dagre
-        style: {
-          background: '#569cd6',
-          color: '#fff',
-          border: '1px solid #3e3e3e',
-          borderRadius: '4px',
-          padding: '10px',
-          fontSize: '14px',
-          minWidth: nodeWidth,
-          minHeight: nodeHeight,
-        },
       }));
 
       const flowEdges: Edge[] = data.edges.map((edge, index) => ({
@@ -119,12 +161,20 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
         source: edge.source,
         target: edge.target,
         type: 'smoothstep',
-        animated: false,
+        animated: true,
         style: {
-          stroke: '#858585',
+          stroke: 'var(--accent-primary)',
           strokeWidth: 2,
         },
       }));
+
+      // Calculate node depths
+      const depths = calculateNodeDepths(flowNodes, flowEdges);
+
+      // Apply depth to node data
+      flowNodes.forEach(node => {
+        node.data.depth = depths.get(node.id) || 0;
+      });
 
       // Apply hierarchical layout using dagre
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
@@ -171,9 +221,12 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
             fitView
+            minZoom={0.2}
+            maxZoom={2}
           >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--border-primary)" />
             <Controls />
           </ReactFlow>
         </div>

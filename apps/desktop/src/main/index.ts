@@ -51,13 +51,41 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // Always quit on Windows/Linux
   if (process.platform !== 'darwin') {
+    cleanup();
     app.quit();
   }
 });
 
-app.on('before-quit', () => {
-  // Cleanup resources
-  indexerService.stopAllWatchers();
-  databaseService.closeAllDatabases();
+app.on('before-quit', (event) => {
+  cleanup();
 });
+
+app.on('will-quit', (event) => {
+  cleanup();
+});
+
+let isCleanedUp = false;
+function cleanup() {
+  if (isCleanedUp) return;
+  isCleanedUp = true;
+
+  console.log('Cleaning up resources...');
+
+  // Stop file watchers
+  try {
+    indexerService.stopAllWatchers();
+  } catch (error) {
+    console.error('Error stopping watchers:', error);
+  }
+
+  // Close databases
+  try {
+    databaseService.closeAllDatabases();
+  } catch (error) {
+    console.error('Error closing databases:', error);
+  }
+
+  console.log('Cleanup complete');
+}

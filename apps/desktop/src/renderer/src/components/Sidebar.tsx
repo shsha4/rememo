@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
+import { useResizable } from '../hooks/useResizable';
 import './Sidebar.css';
 
 function Sidebar() {
@@ -9,6 +10,13 @@ function Sidebar() {
   const { notes, setNotes, setCurrentNote, currentNote } = useNoteStore();
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [newNoteName, setNewNoteName] = useState('');
+
+  const { width, isResizing, handleMouseDown } = useResizable({
+    initialWidth: 280,
+    minWidth: 200,
+    maxWidth: 500,
+    storageKey: 'sidebar-width',
+  });
 
   useEffect(() => {
     if (currentVault) {
@@ -39,7 +47,7 @@ function Sidebar() {
         title: newNoteName.trim(),
         path: notePath,
         content: `# ${newNoteName.trim()}\n\n`,
-      });
+      }, currentVault.path);
 
       setCurrentNote(note);
       setNewNoteName('');
@@ -59,7 +67,14 @@ function Sidebar() {
       setCurrentNote(note);
     } catch (error: any) {
       console.error('Failed to read note:', error);
-      alert(error.message || 'Failed to read note');
+
+      // If note not found, refresh the note list
+      if (error.message?.includes('not found') || error.message?.includes('NoteNotFoundError')) {
+        alert('메모를 찾을 수 없습니다. 목록을 새로고침합니다.');
+        await loadNotes();
+      } else {
+        alert(error.message || '메모를 읽는데 실패했습니다');
+      }
     }
   };
 
@@ -84,7 +99,7 @@ function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={{ width: `${width}px` }}>
       <div className="sidebar-header">
         <h3>{currentVault.name}</h3>
         <button className="btn-icon" onClick={() => setIsCreatingNote(true)} title="New Note">
@@ -145,6 +160,11 @@ function Sidebar() {
           )}
         </div>
       </div>
+
+      <div
+        className={`sidebar-resizer ${isResizing ? 'resizing' : ''}`}
+        onMouseDown={handleMouseDown}
+      />
     </aside>
   );
 }

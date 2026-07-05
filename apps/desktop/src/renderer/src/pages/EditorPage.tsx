@@ -11,13 +11,18 @@ import './EditorPage.css';
 type ViewMode = 'edit' | 'preview' | 'split';
 type RightPanelTab = 'properties' | 'backlinks';
 
-function EditorPage() {
+interface EditorPageProps {
+  onNoteDeleted?: () => void;
+}
+
+function EditorPage({ onNoteDeleted }: EditorPageProps) {
   const { currentNote, setCurrentNote } = useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
+  const [sidebarKey, setSidebarKey] = useState(0);
 
   // Update content when note changes
   useEffect(() => {
@@ -36,7 +41,8 @@ function EditorPage() {
       const updatedNote = await electronAPI.note.update(
         currentNote.path,
         currentVault.id,
-        { content }
+        { content },
+        currentVault.path
       );
       setCurrentNote(updatedNote);
     } catch (error: any) {
@@ -48,14 +54,16 @@ function EditorPage() {
   };
 
   const handleDelete = async () => {
-    if (!currentNote) return;
+    if (!currentNote || !currentVault) return;
 
     const confirmed = confirm(`"${currentNote.title}" 메모를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
     if (!confirmed) return;
 
     try {
-      await electronAPI.note.delete(currentNote.path);
+      await electronAPI.note.delete(currentNote.path, currentVault.path);
       setCurrentNote(null);
+      setSidebarKey(prev => prev + 1); // Force Sidebar to reload
+      onNoteDeleted?.();
     } catch (error: any) {
       console.error('Failed to delete note:', error);
       alert(error.message || '메모 삭제에 실패했습니다');
@@ -86,7 +94,7 @@ function EditorPage() {
   return (
     <div className="editor-page">
       <div className="editor-layout">
-        <Sidebar />
+        <Sidebar key={`sidebar-${sidebarKey}`} />
 
         <main className="editor-main">
           {currentNote ? (
@@ -121,7 +129,6 @@ function EditorPage() {
                     className="btn-delete"
                     onClick={handleDelete}
                     title="메모 삭제"
-                    style={{ marginRight: '8px', background: '#d32f2f', color: 'white' }}
                   >
                     삭제
                   </button>

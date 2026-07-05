@@ -15,10 +15,10 @@ export interface ElectronAPI {
     updateConfig: (vaultPath: string, config: Partial<VaultConfig>) => Promise<void>;
   };
   note: {
-    create: (input: NoteCreateInput) => Promise<Note>;
+    create: (input: NoteCreateInput, vaultPath: string) => Promise<Note>;
     read: (notePath: string, vaultId: string) => Promise<Note>;
-    update: (notePath: string, vaultId: string, update: NoteUpdateInput) => Promise<Note>;
-    delete: (notePath: string) => Promise<void>;
+    update: (notePath: string, vaultId: string, update: NoteUpdateInput, vaultPath: string) => Promise<Note>;
+    delete: (notePath: string, vaultPath: string) => Promise<void>;
     list: (vaultPath: string) => Promise<string[]>;
     rename: (oldPath: string, newPath: string) => Promise<void>;
     getTitle: (notePath: string) => Promise<string>;
@@ -58,10 +58,10 @@ const electronAPI: ElectronAPI = {
     updateConfig: (vaultPath, config) => ipcRenderer.invoke('vault:update-config', vaultPath, config),
   },
   note: {
-    create: (input) => ipcRenderer.invoke('note:create', input),
+    create: (input, vaultPath) => ipcRenderer.invoke('note:create', input, vaultPath),
     read: (notePath, vaultId) => ipcRenderer.invoke('note:read', notePath, vaultId),
-    update: (notePath, vaultId, update) => ipcRenderer.invoke('note:update', notePath, vaultId, update),
-    delete: (notePath) => ipcRenderer.invoke('note:delete', notePath),
+    update: (notePath, vaultId, update, vaultPath) => ipcRenderer.invoke('note:update', notePath, vaultId, update, vaultPath),
+    delete: (notePath, vaultPath) => ipcRenderer.invoke('note:delete', notePath, vaultPath),
     list: (vaultPath) => ipcRenderer.invoke('note:list', vaultPath),
     rename: (oldPath, newPath) => ipcRenderer.invoke('note:rename', oldPath, newPath),
     getTitle: (notePath) => ipcRenderer.invoke('note:get-title', notePath),
