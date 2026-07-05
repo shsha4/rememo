@@ -9,12 +9,17 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 function createWindow() {
+  const iconPath = isDev
+    ? path.join(__dirname, '../../build/icon.png')
+    : path.join(process.resourcesPath, 'app.asar.unpacked/build/icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     title: 'rememo',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

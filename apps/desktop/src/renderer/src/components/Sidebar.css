@@ -262,6 +262,15 @@ body.resizing {
   transition: opacity 0.2s, transform 0.2s;
   font-size: 0.9rem;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.btn-edit svg {
+  width: 14px;
+  height: 14px;
 }
 
 .notes-list li:hover .btn-edit {
