@@ -239,7 +239,13 @@ export class DatabaseService {
     const nodesStmt = db.prepare('SELECT path, title FROM notes');
     const nodes = nodesStmt.all();
 
-    const edgesStmt = db.prepare('SELECT source_note_path as source, target_note_path as target FROM links');
+    // Only include edges where both source and target notes exist
+    const edgesStmt = db.prepare(`
+      SELECT DISTINCT l.source_note_path as source, l.target_note_path as target
+      FROM links l
+      INNER JOIN notes n1 ON l.source_note_path = n1.path
+      INNER JOIN notes n2 ON l.target_note_path = n2.path
+    `);
     const edges = edgesStmt.all();
 
     return { nodes, edges };
