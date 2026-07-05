@@ -237,3 +237,60 @@ body.resizing {
   cursor: col-resize !important;
   user-select: none !important;
 }
+
+.note-item-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.note-item-wrapper .note-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-edit {
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.notes-list li:hover .btn-edit {
+  opacity: 0.6;
+}
+
+.btn-edit:hover {
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
+.edit-note-form {
+  padding: 0;
+}
+
+.edit-note-form input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: all 0.3s;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.edit-note-form input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}

@@ -223,12 +223,24 @@ function Sidebar() {
                       />
                     </div>
                   ) : (
-                    <span
-                      onClick={() => handleSelectNote(notePath)}
-                      onDoubleClick={() => handleDoubleClickNote(notePath)}
-                    >
-                      {getDisplayName(notePath)}
-                    </span>
+                    <div className="note-item-wrapper">
+                      <span
+                        className="note-name"
+                        onClick={() => handleSelectNote(notePath)}
+                      >
+                        {getDisplayName(notePath)}
+                      </span>
+                      <button
+                        className="btn-edit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDoubleClickNote(notePath);
+                        }}
+                        title="Rename note"
+                      >
+                        ✏️
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}

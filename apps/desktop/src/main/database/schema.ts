@@ -30,6 +30,7 @@ export function initializeDatabase(dbPath: string): Database.Database {
   `);
 
   // Create links table for WikiLinks
+  // No FOREIGN KEY constraints - target notes may not exist yet
   db.exec(`
     CREATE TABLE IF NOT EXISTS links (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,20 +41,19 @@ export function initializeDatabase(dbPath: string): Database.Database {
       heading TEXT,
       link_type TEXT NOT NULL,
       position_start INTEGER NOT NULL,
-      position_end INTEGER NOT NULL,
-      FOREIGN KEY (source_note_path) REFERENCES notes(path) ON DELETE CASCADE
+      position_end INTEGER NOT NULL
     );
   `);
 
   // Create tags table
+  // No FOREIGN KEY constraints for flexibility
   db.exec(`
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       note_path TEXT NOT NULL,
       tag TEXT NOT NULL,
       position_start INTEGER NOT NULL,
-      position_end INTEGER NOT NULL,
-      FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+      position_end INTEGER NOT NULL
     );
   `);
 
