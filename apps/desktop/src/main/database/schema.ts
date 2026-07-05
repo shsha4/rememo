@@ -1,6 +1,14 @@
 import Database from 'better-sqlite3';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function initializeDatabase(dbPath: string): Database.Database {
+  // Ensure the parent directory exists
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   const db = new Database(dbPath);
 
   // Enable WAL mode for better concurrent access

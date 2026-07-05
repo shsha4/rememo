@@ -18,6 +18,74 @@ export class MarkdownParser {
   // YAML Front Matter pattern
   private static YAML_FRONT_MATTER_REGEX = /^---\n([\s\S]*?)\n---/;
 
+  // Entity mention interface
+  parseEntityMentions(content: string, entityTitles: string[], currentNoteTitle?: string): WikiLink[] {
+    const mentions: WikiLink[] = [];
+
+    // Filter out the current note's title to avoid self-references
+    const filteredTitles = currentNoteTitle
+      ? entityTitles.filter(title => title !== currentNoteTitle)
+      : entityTitles;
+
+    // Remove YAML front matter and existing WikiLinks to avoid false matches
+    const contentWithoutFrontMatter = this.extractContentWithoutFrontMatter(content);
+    const wikiLinkRanges = this.getWikiLinkRanges(content);
+
+    // Sort entity titles by length (longest first) to match longer phrases first
+    const sortedTitles = [...filteredTitles].sort((a, b) => b.length - a.length);
+
+    for (const title of sortedTitles) {
+      if (title.length < 2) continue; // Skip very short titles
+
+      // Escape special regex characters
+      const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Match whole words only (using word boundaries for English, context for Korean/mixed)
+      // Korean particles (조사) that can follow nouns: 은, 는, 이, 가, 을, 를, 의, 에, 에서, 으로, 로, 와, 과, etc.
+      // After the entity name, allow particles (followed by non-Korean) OR require non-Korean/word boundary
+      const regex = new RegExp(`(?<![\\w가-힣])${escapedTitle}(?:(?=[은는이가을를의](?![\\w가-힣]))|(?![\\w가-힣]))`, 'g');
+
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(contentWithoutFrontMatter)) !== null) {
+        const position: LinkPosition = {
+          start: match.index,
+          end: match.index + match[0].length,
+          line: this.getLineNumber(contentWithoutFrontMatter, match.index),
+        };
+
+        // Skip if this position is already inside a WikiLink
+        const isInsideWikiLink = wikiLinkRanges.some(
+          (range) => match!.index >= range.start && match!.index < range.end
+        );
+
+        if (!isInsideWikiLink) {
+          mentions.push({
+            target: title,
+            position,
+          });
+        }
+      }
+    }
+
+    return mentions;
+  }
+
+  // Helper to get all WikiLink ranges in content
+  private getWikiLinkRanges(content: string): Array<{ start: number; end: number }> {
+    const ranges: Array<{ start: number; end: number }> = [];
+    const regex = new RegExp(MarkdownParser.WIKI_LINK_REGEX);
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(content)) !== null) {
+      ranges.push({
+        start: match.index,
+        end: match.index + match[0].length,
+      });
+    }
+
+    return ranges;
+  }
+
   parse(content: string): ParseResult {
     const wikiLinks = this.parseWikiLinks(content);
     const tags = this.parseTags(content);

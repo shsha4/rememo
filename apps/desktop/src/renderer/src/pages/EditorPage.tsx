@@ -41,9 +41,24 @@ function EditorPage() {
       setCurrentNote(updatedNote);
     } catch (error: any) {
       console.error('Failed to save note:', error);
-      alert(error.message || 'Failed to save note');
+      alert(error.message || '메모 저장에 실패했습니다');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentNote) return;
+
+    const confirmed = confirm(`"${currentNote.title}" 메모를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+    if (!confirmed) return;
+
+    try {
+      await electronAPI.note.delete(currentNote.path);
+      setCurrentNote(null);
+    } catch (error: any) {
+      console.error('Failed to delete note:', error);
+      alert(error.message || '메모 삭제에 실패했습니다');
     }
   };
 
@@ -83,31 +98,39 @@ function EditorPage() {
                     <button
                       className={`mode-btn ${viewMode === 'edit' ? 'active' : ''}`}
                       onClick={() => setViewMode('edit')}
-                      title="Edit Mode"
+                      title="편집 모드"
                     >
-                      Edit
+                      편집
                     </button>
                     <button
                       className={`mode-btn ${viewMode === 'split' ? 'active' : ''}`}
                       onClick={() => setViewMode('split')}
-                      title="Split View"
+                      title="분할 보기"
                     >
-                      Split
+                      분할
                     </button>
                     <button
                       className={`mode-btn ${viewMode === 'preview' ? 'active' : ''}`}
                       onClick={() => setViewMode('preview')}
-                      title="Preview Mode"
+                      title="미리보기 모드"
                     >
-                      Preview
+                      미리보기
                     </button>
                   </div>
+                  <button
+                    className="btn-delete"
+                    onClick={handleDelete}
+                    title="메모 삭제"
+                    style={{ marginRight: '8px', background: '#d32f2f', color: 'white' }}
+                  >
+                    삭제
+                  </button>
                   <button
                     className="btn-save"
                     onClick={handleSave}
                     disabled={isSaving}
                   >
-                    {isSaving ? 'Saving...' : 'Save (Ctrl+S)'}
+                    {isSaving ? '저장 중...' : '저장 (Ctrl+S)'}
                   </button>
                 </div>
               </div>
@@ -117,7 +140,7 @@ function EditorPage() {
             </>
           ) : (
             <div className="editor-empty">
-              <p>Select a note or create a new one</p>
+              <p>메모를 선택하거나 새로 만들어주세요</p>
             </div>
           )}
         </main>
@@ -129,13 +152,13 @@ function EditorPage() {
                 className={`panel-tab ${rightPanelTab === 'properties' ? 'active' : ''}`}
                 onClick={() => setRightPanelTab('properties')}
               >
-                Properties
+                속성
               </button>
               <button
                 className={`panel-tab ${rightPanelTab === 'backlinks' ? 'active' : ''}`}
                 onClick={() => setRightPanelTab('backlinks')}
               >
-                Backlinks
+                역링크
               </button>
             </div>
           </div>
@@ -144,25 +167,25 @@ function EditorPage() {
               currentNote ? (
                 <div className="note-metadata">
                   <p>
-                    <strong>Created:</strong>{' '}
-                    {new Date(currentNote.createdAt).toLocaleString()}
+                    <strong>생성:</strong>{' '}
+                    {new Date(currentNote.createdAt).toLocaleString('ko-KR')}
                   </p>
                   <p>
-                    <strong>Updated:</strong>{' '}
-                    {new Date(currentNote.updatedAt).toLocaleString()}
+                    <strong>수정:</strong>{' '}
+                    {new Date(currentNote.updatedAt).toLocaleString('ko-KR')}
                   </p>
                   <p>
-                    <strong>Path:</strong> {currentNote.path}
+                    <strong>경로:</strong> {currentNote.path}
                   </p>
                 </div>
               ) : (
-                <p className="empty-message">No note selected</p>
+                <p className="empty-message">메모가 선택되지 않았습니다</p>
               )
             ) : (
               currentNote ? (
                 <Backlinks notePath={currentNote.path} />
               ) : (
-                <p className="empty-message">No note selected</p>
+                <p className="empty-message">메모가 선택되지 않았습니다</p>
               )
             )}
           </div>

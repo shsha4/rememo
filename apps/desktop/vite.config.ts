@@ -18,7 +18,7 @@ export default defineConfig({
               formats: ['cjs'],
             },
             rollupOptions: {
-              external: ['electron'],
+              external: ['electron', 'better-sqlite3'],
             },
             commonjsOptions: {
               transformMixedEsModules: true,
@@ -45,7 +45,13 @@ export default defineConfig({
         },
       },
     ]),
-    renderer(),
+    renderer({
+      nodeIntegration: false,
+      resolve: {
+        'better-sqlite3': { type: 'cjs' },
+        'chokidar': { type: 'esm' },
+      },
+    }),
   ],
   resolve: {
     alias: {

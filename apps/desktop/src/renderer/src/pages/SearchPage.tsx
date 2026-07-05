@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
+import { useNoteStore } from '../stores/note.store';
 import './SearchPage.css';
 
 type SearchMode = 'fulltext' | 'tags';
@@ -13,8 +14,13 @@ interface SearchResult {
   rank?: number;
 }
 
-function SearchPage() {
+interface SearchPageProps {
+  onNavigateToEditor: () => void;
+}
+
+function SearchPage({ onNavigateToEditor }: SearchPageProps) {
   const { currentVault } = useVaultStore();
+  const { setCurrentNote } = useNoteStore();
   const [searchMode, setSearchMode] = useState<SearchMode>('fulltext');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -71,15 +77,24 @@ function SearchPage() {
     setTimeout(() => handleSearch(), 100);
   };
 
-  const handleResultClick = (result: SearchResult) => {
-    console.log('Navigate to note:', result.path);
-    // TODO: Implement navigation to note
+  const handleResultClick = async (result: SearchResult) => {
+    if (!currentVault) return;
+
+    try {
+      // Load the note
+      const note = await electronAPI.note.read(result.path, currentVault.id);
+      setCurrentNote(note);
+      onNavigateToEditor();
+    } catch (error) {
+      console.error('Failed to load note:', error);
+      alert('Failed to load note');
+    }
   };
 
   return (
     <div className="search-page">
       <div className="search-header">
-        <h2>Search</h2>
+        <h2>검색</h2>
       </div>
 
       <div className="search-controls">
@@ -88,13 +103,13 @@ function SearchPage() {
             className={`mode-btn ${searchMode === 'fulltext' ? 'active' : ''}`}
             onClick={() => setSearchMode('fulltext')}
           >
-            Full-text
+            전체 검색
           </button>
           <button
             className={`mode-btn ${searchMode === 'tags' ? 'active' : ''}`}
             onClick={() => setSearchMode('tags')}
           >
-            Tags
+            태그 검색
           </button>
         </div>
 
@@ -104,22 +119,22 @@ function SearchPage() {
             className="search-input"
             placeholder={
               searchMode === 'fulltext'
-                ? 'Search in notes...'
-                : 'Search by tag...'
+                ? '메모 검색...'
+                : '태그로 검색...'
             }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button className="btn-search" onClick={handleSearch}>
-            Search
+            검색
           </button>
         </div>
       </div>
 
       {searchMode === 'tags' && tags.length > 0 && (
         <div className="tags-section">
-          <h3>All Tags ({tags.length})</h3>
+          <h3>모든 태그 ({tags.length})</h3>
           <div className="tags-list">
             {tags.map((tag, index) => (
               <button
@@ -136,9 +151,9 @@ function SearchPage() {
 
       <div className="search-results">
         {loading ? (
-          <div className="results-loading">Searching...</div>
+          <div className="results-loading">검색 중...</div>
         ) : query && results.length === 0 ? (
-          <div className="results-empty">No results found</div>
+          <div className="results-empty">검색 결과가 없습니다</div>
         ) : (
           <div className="results-list">
             {results.map((result, index) => (

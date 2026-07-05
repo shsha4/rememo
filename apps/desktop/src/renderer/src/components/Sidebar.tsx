@@ -63,11 +63,20 @@ function Sidebar() {
     }
   };
 
-  const getRelativeNotePath = (notePath: string): string => {
+  const getDisplayName = (notePath: string): string => {
     if (!currentVault) return notePath;
+
+    // Get relative path from vault root
     const vaultPath = currentVault.path.replace(/\\/g, '/');
     const normalizedPath = notePath.replace(/\\/g, '/');
-    return normalizedPath.replace(vaultPath + '/', '');
+    const relativePath = normalizedPath.replace(vaultPath + '/', '');
+
+    // Remove .md extension
+    const withoutExtension = relativePath.replace(/\.md$/, '');
+
+    // Remove Notes/ prefix if it exists
+    const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
+    return withoutExtension.replace(new RegExp(`^${notesDir}/`), '');
   };
 
   if (!currentVault) {
@@ -129,7 +138,7 @@ function Sidebar() {
                   className={currentNote?.path === notePath ? 'active' : ''}
                   onClick={() => handleSelectNote(notePath)}
                 >
-                  {getRelativeNotePath(notePath)}
+                  {getDisplayName(notePath)}
                 </li>
               ))}
             </ul>

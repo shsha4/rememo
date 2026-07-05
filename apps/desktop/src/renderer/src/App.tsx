@@ -9,6 +9,7 @@ type Page = 'vault' | 'editor' | 'graph' | 'search';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('vault');
+  const [pageKey, setPageKey] = useState(0);
   const { currentVault, loadRecentVaults } = useVaultStore();
 
   useEffect(() => {
@@ -23,6 +24,11 @@ function App() {
     }
   }, [currentVault]);
 
+  const handlePageChange = (page: Page) => {
+    setCurrentPage(page);
+    setPageKey(prev => prev + 1);
+  };
+
   const renderNavBar = () => {
     if (!currentVault) return null;
 
@@ -30,21 +36,21 @@ function App() {
       <div className="app-nav">
         <button
           className={`nav-btn ${currentPage === 'editor' ? 'active' : ''}`}
-          onClick={() => setCurrentPage('editor')}
+          onClick={() => handlePageChange('editor')}
         >
-          Editor
+          에디터
         </button>
         <button
           className={`nav-btn ${currentPage === 'graph' ? 'active' : ''}`}
-          onClick={() => setCurrentPage('graph')}
+          onClick={() => handlePageChange('graph')}
         >
-          Graph
+          그래프
         </button>
         <button
           className={`nav-btn ${currentPage === 'search' ? 'active' : ''}`}
-          onClick={() => setCurrentPage('search')}
+          onClick={() => handlePageChange('search')}
         >
-          Search
+          검색
         </button>
       </div>
     );
@@ -65,14 +71,14 @@ function App() {
         return (
           <>
             {renderNavBar()}
-            <GraphPage />
+            <GraphPage key={`graph-${pageKey}`} onNavigateToEditor={() => handlePageChange('editor')} />
           </>
         );
       case 'search':
         return (
           <>
             {renderNavBar()}
-            <SearchPage />
+            <SearchPage key={`search-${pageKey}`} onNavigateToEditor={() => handlePageChange('editor')} />
           </>
         );
       default:

@@ -151,18 +151,35 @@ export class DatabaseService {
     return stmt.all(notePath);
   }
 
-  // Search operations
+  // Search operations with improved Korean support
   searchNotes(vaultPath: string, query: string): any[] {
     const db = this.getDatabase(vaultPath);
+
+    // Clean and prepare search query
+    const cleanQuery = query.trim();
+    if (cleanQuery.length === 0) {
+      return [];
+    }
+
+    // Use LIKE search for better Korean character support
+    // Search in both title and content
+    const likePattern = `%${cleanQuery}%`;
+
     const stmt = db.prepare(`
-      SELECT n.*, rank
-      FROM notes_fts
-      JOIN notes n ON notes_fts.path = n.path
-      WHERE notes_fts MATCH ?
-      ORDER BY rank
+      SELECT
+        *,
+        CASE
+          WHEN title LIKE ? THEN 10
+          WHEN content LIKE ? THEN 5
+          ELSE 1
+        END as relevance_score
+      FROM notes
+      WHERE title LIKE ? OR content LIKE ?
+      ORDER BY relevance_score DESC, updated_at DESC
       LIMIT 50
     `);
-    return stmt.all(query);
+
+    return stmt.all(likePattern, likePattern, likePattern, likePattern);
   }
 
   searchByTag(vaultPath: string, tag: string): any[] {
@@ -181,6 +198,13 @@ export class DatabaseService {
     const stmt = db.prepare('SELECT DISTINCT tag FROM tags ORDER BY tag');
     const results = stmt.all() as Array<{ tag: string }>;
     return results.map(r => r.tag);
+  }
+
+  getAllNoteTitles(vaultPath: string): string[] {
+    const db = this.getDatabase(vaultPath);
+    const stmt = db.prepare('SELECT DISTINCT title FROM notes ORDER BY LENGTH(title) DESC');
+    const results = stmt.all() as Array<{ title: string }>;
+    return results.map(r => r.title);
   }
 
   // Graph data
