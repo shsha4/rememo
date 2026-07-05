@@ -54,8 +54,21 @@ export function setupNoteHandlers() {
     return noteService.listNotes(vaultPath);
   });
 
-  ipcMain.handle('note:rename', async (_event, oldPath: string, newPath: string) => {
-    return noteService.renameNote(oldPath, newPath);
+  ipcMain.handle('note:rename', async (_event, oldPath: string, newPath: string, vaultPath: string, vaultId: string) => {
+    await noteService.renameNote(oldPath, newPath);
+
+    // Explicitly trigger index update for the renamed note
+    try {
+      console.log('[note:rename] Triggering index update for renamed note:', oldPath, '->', newPath);
+      // Delete old note from index
+      await indexerService.deleteNoteFromIndex(oldPath, vaultPath);
+      // Index the new note
+      await indexerService.indexNote(newPath, vaultPath, vaultId);
+      // Re-index all links since links might reference the renamed note
+      await indexerService.reindexAllNotesLinks(vaultPath, vaultId);
+    } catch (error) {
+      console.error('[note:rename] Failed to trigger index update:', error);
+    }
   });
 
   ipcMain.handle('note:get-title', async (_event, notePath: string) => {

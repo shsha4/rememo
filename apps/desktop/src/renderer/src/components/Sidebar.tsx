@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
@@ -10,6 +10,9 @@ function Sidebar() {
   const { notes, setNotes, setCurrentNote, currentNote } = useNoteStore();
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [newNoteName, setNewNoteName] = useState('');
+  const [editingNotePath, setEditingNotePath] = useState<string | null>(null);
+  const [editingNoteName, setEditingNoteName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { width, isResizing, handleMouseDown } = useResizable({
     initialWidth: 280,
@@ -23,6 +26,16 @@ function Sidebar() {
       loadNotes();
     }
   }, [currentVault]);
+
+  // Focus input when creating/editing note
+  useEffect(() => {
+    if ((isCreatingNote || editingNotePath) && inputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [isCreatingNote, editingNotePath]);
 
   const loadNotes = async () => {
     if (!currentVault) return;
@@ -78,6 +91,43 @@ function Sidebar() {
     }
   };
 
+  const handleRenameNote = async (oldPath: string) => {
+    if (!currentVault || !editingNoteName.trim()) return;
+
+    try {
+      const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
+      const newPath = `${currentVault.path}/${notesDir}/${editingNoteName.trim()}.md`;
+
+      // Check if renaming to same name
+      if (oldPath === newPath) {
+        setEditingNotePath(null);
+        setEditingNoteName('');
+        return;
+      }
+
+      // Rename the file
+      await electronAPI.note.rename(oldPath, newPath, currentVault.path, currentVault.id);
+
+      // Update current note if it was the one being renamed
+      if (currentNote?.path === oldPath) {
+        const renamedNote = await electronAPI.note.read(newPath, currentVault.id);
+        setCurrentNote(renamedNote);
+      }
+
+      setEditingNotePath(null);
+      setEditingNoteName('');
+      await loadNotes();
+    } catch (error: any) {
+      console.error('Failed to rename note:', error);
+      alert(error.message || 'Failed to rename note');
+    }
+  };
+
+  const handleDoubleClickNote = (notePath: string) => {
+    setEditingNotePath(notePath);
+    setEditingNoteName(getDisplayName(notePath));
+  };
+
   const getDisplayName = (notePath: string): string => {
     if (!currentVault) return notePath;
 
@@ -110,6 +160,7 @@ function Sidebar() {
       {isCreatingNote && (
         <div className="create-note-form">
           <input
+            ref={inputRef}
             type="text"
             placeholder="Note name"
             value={newNoteName}
@@ -121,7 +172,6 @@ function Sidebar() {
                 setNewNoteName('');
               }
             }}
-            autoFocus
           />
           <div className="form-actions-inline">
             <button className="btn-sm btn-primary" onClick={handleCreateNote}>
@@ -151,9 +201,35 @@ function Sidebar() {
                 <li
                   key={notePath}
                   className={currentNote?.path === notePath ? 'active' : ''}
-                  onClick={() => handleSelectNote(notePath)}
                 >
-                  {getDisplayName(notePath)}
+                  {editingNotePath === notePath ? (
+                    <div className="edit-note-form">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={editingNoteName}
+                        onChange={(e) => setEditingNoteName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameNote(notePath);
+                          if (e.key === 'Escape') {
+                            setEditingNotePath(null);
+                            setEditingNoteName('');
+                          }
+                        }}
+                        onBlur={() => {
+                          setEditingNotePath(null);
+                          setEditingNoteName('');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span
+                      onClick={() => handleSelectNote(notePath)}
+                      onDoubleClick={() => handleDoubleClickNote(notePath)}
+                    >
+                      {getDisplayName(notePath)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
