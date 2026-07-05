@@ -47,27 +47,43 @@ export class DatabaseService {
     const db = this.getDatabase(vaultPath);
 
     // Check if note exists by path
-    const existing = db.prepare('SELECT id FROM notes WHERE path = ?').get(note.path) as { id: string } | undefined;
-    const noteId = existing ? existing.id : note.id;
+    const existing = db.prepare('SELECT id, created_at FROM notes WHERE path = ?').get(note.path) as { id: string; created_at: number } | undefined;
 
-    // Use the existing id if found, otherwise use the provided id
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO notes (
-        id, vault_id, title, path, content, content_hash, created_at, updated_at, metadata
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      noteId,
-      note.vaultId,
-      note.title,
-      note.path,
-      note.content,
-      note.contentHash,
-      note.createdAt.getTime(),
-      note.updatedAt.getTime(),
-      note.metadata ? JSON.stringify(note.metadata) : null
-    );
+    if (existing) {
+      // Update existing note - keep original id and created_at
+      const stmt = db.prepare(`
+        UPDATE notes
+        SET vault_id = ?, title = ?, content = ?, content_hash = ?, updated_at = ?, metadata = ?
+        WHERE path = ?
+      `);
+      stmt.run(
+        note.vaultId,
+        note.title,
+        note.content,
+        note.contentHash,
+        note.updatedAt.getTime(),
+        note.metadata ? JSON.stringify(note.metadata) : null,
+        note.path
+      );
+    } else {
+      // Insert new note
+      const stmt = db.prepare(`
+        INSERT INTO notes (
+          id, vault_id, title, path, content, content_hash, created_at, updated_at, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        note.id,
+        note.vaultId,
+        note.title,
+        note.path,
+        note.content,
+        note.contentHash,
+        note.createdAt.getTime(),
+        note.updatedAt.getTime(),
+        note.metadata ? JSON.stringify(note.metadata) : null
+      );
+    }
   }
 
   deleteNote(vaultPath: string, notePath: string): void {
@@ -236,7 +252,7 @@ export class DatabaseService {
   getGraphData(vaultPath: string): { nodes: any[], edges: any[] } {
     const db = this.getDatabase(vaultPath);
 
-    const nodesStmt = db.prepare('SELECT path, title FROM notes');
+    const nodesStmt = db.prepare('SELECT DISTINCT path, title FROM notes');
     const nodes = nodesStmt.all();
 
     // Only include edges where both source and target notes exist
@@ -247,6 +263,10 @@ export class DatabaseService {
       INNER JOIN notes n2 ON l.target_note_path = n2.path
     `);
     const edges = edgesStmt.all();
+
+    console.log('[GraphData] Nodes count:', nodes.length);
+    console.log('[GraphData] Edges count:', edges.length);
+    console.log('[GraphData] Nodes:', nodes);
 
     return { nodes, edges };
   }
