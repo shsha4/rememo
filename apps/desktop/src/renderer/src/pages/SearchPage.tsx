@@ -1,0 +1,166 @@
+import { useState, useEffect } from 'react';
+import { electronAPI } from '../api/electron-api';
+import { useVaultStore } from '../stores/vault.store';
+import './SearchPage.css';
+
+type SearchMode = 'fulltext' | 'tags';
+
+interface SearchResult {
+  id: string;
+  title: string;
+  path: string;
+  content: string;
+  rank?: number;
+}
+
+function SearchPage() {
+  const { currentVault } = useVaultStore();
+  const [searchMode, setSearchMode] = useState<SearchMode>('fulltext');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentVault) {
+      loadTags();
+    }
+  }, [currentVault]);
+
+  const loadTags = async () => {
+    if (!currentVault) return;
+
+    try {
+      const allTags = await electronAPI.indexer.getAllTags(currentVault.path);
+      setTags(allTags);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!currentVault || !query.trim()) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let searchResults: any[] = [];
+
+      if (searchMode === 'fulltext') {
+        searchResults = await electronAPI.indexer.searchNotes(currentVault.path, query.trim());
+      } else if (searchMode === 'tags') {
+        const tagQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
+        searchResults = await electronAPI.indexer.searchByTag(currentVault.path, tagQuery);
+      }
+
+      setResults(searchResults);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTagClick = (tag: string) => {
+    setSearchMode('tags');
+    setQuery(tag);
+    // Trigger search with the tag
+    setTimeout(() => handleSearch(), 100);
+  };
+
+  const handleResultClick = (result: SearchResult) => {
+    console.log('Navigate to note:', result.path);
+    // TODO: Implement navigation to note
+  };
+
+  return (
+    <div className="search-page">
+      <div className="search-header">
+        <h2>Search</h2>
+      </div>
+
+      <div className="search-controls">
+        <div className="search-mode-selector">
+          <button
+            className={`mode-btn ${searchMode === 'fulltext' ? 'active' : ''}`}
+            onClick={() => setSearchMode('fulltext')}
+          >
+            Full-text
+          </button>
+          <button
+            className={`mode-btn ${searchMode === 'tags' ? 'active' : ''}`}
+            onClick={() => setSearchMode('tags')}
+          >
+            Tags
+          </button>
+        </div>
+
+        <div className="search-input-group">
+          <input
+            type="text"
+            className="search-input"
+            placeholder={
+              searchMode === 'fulltext'
+                ? 'Search in notes...'
+                : 'Search by tag...'
+            }
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button className="btn-search" onClick={handleSearch}>
+            Search
+          </button>
+        </div>
+      </div>
+
+      {searchMode === 'tags' && tags.length > 0 && (
+        <div className="tags-section">
+          <h3>All Tags ({tags.length})</h3>
+          <div className="tags-list">
+            {tags.map((tag, index) => (
+              <button
+                key={index}
+                className="tag-button"
+                onClick={() => handleTagClick(tag)}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="search-results">
+        {loading ? (
+          <div className="results-loading">Searching...</div>
+        ) : query && results.length === 0 ? (
+          <div className="results-empty">No results found</div>
+        ) : (
+          <div className="results-list">
+            {results.map((result, index) => (
+              <div
+                key={index}
+                className="result-item"
+                onClick={() => handleResultClick(result)}
+              >
+                <div className="result-title">{result.title}</div>
+                <div className="result-path">{result.path}</div>
+                {result.content && (
+                  <div className="result-preview">
+                    {result.content.substring(0, 200)}...
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default SearchPage;

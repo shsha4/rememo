@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron';
 import { setupVaultHandlers } from './vault.handlers';
 import { setupNoteHandlers } from './note.handlers';
+import { setupIndexerHandlers } from './indexer.handlers';
+import { setupSyncHandlers } from './sync.handlers';
 
 export function setupIpcHandlers() {
   // Ping-Pong test handler
@@ -19,7 +21,9 @@ export function setupIpcHandlers() {
   // Note handlers
   setupNoteHandlers();
 
-  // TODO: Add more IPC handlers as we build features
-  // - File handlers
-  // - etc.
+  // Indexer handlers
+  setupIndexerHandlers();
+
+  // Sync handlers (Google Drive)
+  setupSyncHandlers();
 }

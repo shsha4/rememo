@@ -22,6 +22,11 @@ function VaultPage() {
       }
 
       const vault = await electronAPI.vault.create(folderPath, vaultName.trim());
+
+      // Start indexing and watching the vault
+      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.startWatching(vault.path, vault.id);
+
       setCurrentVault(vault);
       addRecentVault(vault.path);
     } catch (err: any) {
@@ -37,6 +42,11 @@ function VaultPage() {
       }
 
       const vault = await electronAPI.vault.open(folderPath);
+
+      // Start indexing and watching the vault
+      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.startWatching(vault.path, vault.id);
+
       setCurrentVault(vault);
       addRecentVault(vault.path);
     } catch (err: any) {
@@ -47,6 +57,11 @@ function VaultPage() {
   const handleOpenRecentVault = async (vaultPath: string) => {
     try {
       const vault = await electronAPI.vault.open(vaultPath);
+
+      // Start indexing and watching the vault
+      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.startWatching(vault.path, vault.id);
+
       setCurrentVault(vault);
       addRecentVault(vault.path);
     } catch (err: any) {

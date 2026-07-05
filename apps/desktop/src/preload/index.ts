@@ -24,6 +24,25 @@ export interface ElectronAPI {
     getTitle: (notePath: string) => Promise<string>;
     getRelativePath: (notePath: string, vaultPath: string) => Promise<string>;
   };
+  indexer: {
+    indexVault: (vaultPath: string, vaultId: string) => Promise<void>;
+    getBacklinks: (vaultPath: string, notePath: string) => Promise<any[]>;
+    searchNotes: (vaultPath: string, query: string) => Promise<any[]>;
+    searchByTag: (vaultPath: string, tag: string) => Promise<any[]>;
+    getAllTags: (vaultPath: string) => Promise<string[]>;
+    getGraphData: (vaultPath: string) => Promise<{ nodes: any[], edges: any[] }>;
+    startWatching: (vaultPath: string, vaultId: string) => Promise<void>;
+    stopWatching: (vaultPath: string) => Promise<void>;
+  };
+  sync: {
+    authenticate: () => Promise<boolean>;
+    isAuthenticated: () => Promise<boolean>;
+    signOut: () => Promise<void>;
+    backupVault: (vaultPath: string) => Promise<string>;
+    listBackups: () => Promise<Array<{ id: string; name: string; createdAt: Date }>>;
+    deleteBackup: (backupId: string) => Promise<void>;
+    restoreVault: (backupId: string, targetPath: string) => Promise<void>;
+  };
 }
 
 const electronAPI: ElectronAPI = {
@@ -47,6 +66,25 @@ const electronAPI: ElectronAPI = {
     rename: (oldPath, newPath) => ipcRenderer.invoke('note:rename', oldPath, newPath),
     getTitle: (notePath) => ipcRenderer.invoke('note:get-title', notePath),
     getRelativePath: (notePath, vaultPath) => ipcRenderer.invoke('note:get-relative-path', notePath, vaultPath),
+  },
+  indexer: {
+    indexVault: (vaultPath, vaultId) => ipcRenderer.invoke('indexer:index-vault', vaultPath, vaultId),
+    getBacklinks: (vaultPath, notePath) => ipcRenderer.invoke('indexer:get-backlinks', vaultPath, notePath),
+    searchNotes: (vaultPath, query) => ipcRenderer.invoke('indexer:search-notes', vaultPath, query),
+    searchByTag: (vaultPath, tag) => ipcRenderer.invoke('indexer:search-by-tag', vaultPath, tag),
+    getAllTags: (vaultPath) => ipcRenderer.invoke('indexer:get-all-tags', vaultPath),
+    getGraphData: (vaultPath) => ipcRenderer.invoke('indexer:get-graph-data', vaultPath),
+    startWatching: (vaultPath, vaultId) => ipcRenderer.invoke('indexer:start-watching', vaultPath, vaultId),
+    stopWatching: (vaultPath) => ipcRenderer.invoke('indexer:stop-watching', vaultPath),
+  },
+  sync: {
+    authenticate: () => ipcRenderer.invoke('sync:authenticate'),
+    isAuthenticated: () => ipcRenderer.invoke('sync:is-authenticated'),
+    signOut: () => ipcRenderer.invoke('sync:sign-out'),
+    backupVault: (vaultPath) => ipcRenderer.invoke('sync:backup-vault', vaultPath),
+    listBackups: () => ipcRenderer.invoke('sync:list-backups'),
+    deleteBackup: (backupId) => ipcRenderer.invoke('sync:delete-backup', backupId),
+    restoreVault: (backupId, targetPath) => ipcRenderer.invoke('sync:restore-vault', backupId, targetPath),
   },
 };
 

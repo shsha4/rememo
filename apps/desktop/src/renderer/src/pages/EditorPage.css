@@ -143,6 +143,32 @@
   margin: 0;
 }
 
+.panel-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #858585;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.panel-tab:hover {
+  color: #d4d4d4;
+}
+
+.panel-tab.active {
+  color: #569cd6;
+  border-bottom-color: #569cd6;
+}
+
 .panel-content {
   flex: 1;
   padding: 1rem;

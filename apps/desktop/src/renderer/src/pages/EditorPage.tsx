@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import MarkdownPreview from '../components/MarkdownPreview';
+import Backlinks from '../components/Backlinks';
 import { useNoteStore } from '../stores/note.store';
 import { useVaultStore } from '../stores/vault.store';
 import { electronAPI } from '../api/electron-api';
 import './EditorPage.css';
 
 type ViewMode = 'edit' | 'preview' | 'split';
+type RightPanelTab = 'properties' | 'backlinks';
 
 function EditorPage() {
   const { currentNote, setCurrentNote } = useNoteStore();
@@ -15,6 +17,7 @@ function EditorPage() {
   const [content, setContent] = useState(currentNote?.content || '');
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
 
   // Update content when note changes
   useEffect(() => {
@@ -121,25 +124,46 @@ function EditorPage() {
 
         <aside className="right-panel">
           <div className="panel-header">
-            <h3>Properties</h3>
+            <div className="panel-tabs">
+              <button
+                className={`panel-tab ${rightPanelTab === 'properties' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('properties')}
+              >
+                Properties
+              </button>
+              <button
+                className={`panel-tab ${rightPanelTab === 'backlinks' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('backlinks')}
+              >
+                Backlinks
+              </button>
+            </div>
           </div>
           <div className="panel-content">
-            {currentNote ? (
-              <div className="note-metadata">
-                <p>
-                  <strong>Created:</strong>{' '}
-                  {new Date(currentNote.createdAt).toLocaleString()}
-                </p>
-                <p>
-                  <strong>Updated:</strong>{' '}
-                  {new Date(currentNote.updatedAt).toLocaleString()}
-                </p>
-                <p>
-                  <strong>Path:</strong> {currentNote.path}
-                </p>
-              </div>
+            {rightPanelTab === 'properties' ? (
+              currentNote ? (
+                <div className="note-metadata">
+                  <p>
+                    <strong>Created:</strong>{' '}
+                    {new Date(currentNote.createdAt).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Updated:</strong>{' '}
+                    {new Date(currentNote.updatedAt).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Path:</strong> {currentNote.path}
+                  </p>
+                </div>
+              ) : (
+                <p className="empty-message">No note selected</p>
+              )
             ) : (
-              <p className="empty-message">No note selected</p>
+              currentNote ? (
+                <Backlinks notePath={currentNote.path} />
+              ) : (
+                <p className="empty-message">No note selected</p>
+              )
             )}
           </div>
         </aside>
