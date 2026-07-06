@@ -26,8 +26,9 @@ export class VaultService {
       throw new VaultAlreadyExistsError(vaultPath);
     }
 
-    // Create vault config
+    // Create vault config (id는 vault.json에 영속되어 이후 open 시 안정적으로 유지된다)
     const config: VaultConfig = {
+      id: crypto.randomUUID(),
       version: '1.0.0',
       name,
       defaultNoteLocation: 'Notes',
@@ -36,7 +37,7 @@ export class VaultService {
 
     // Create vault
     const vault: Vault = {
-      id: crypto.randomUUID(),
+      id: config.id,
       name,
       path: vaultPath,
       createdAt: new Date(),
@@ -81,8 +82,15 @@ export class VaultService {
     const configContent = await fileService.readFile(vaultConfigPath);
     const config: VaultConfig = JSON.parse(configContent);
 
+    // 마이그레이션: 레거시 vault.json에 id가 없으면 한 번 생성해 파일에 영속화한다.
+    // 이렇게 하면 다음 open부터는 항상 같은 id가 유지된다.
+    if (!config.id) {
+      config.id = crypto.randomUUID();
+      await fileService.writeFile(vaultConfigPath, JSON.stringify(config, null, 2));
+    }
+
     const vault: Vault = {
-      id: crypto.randomUUID(), // In a real app, this would be persisted
+      id: config.id,
       name: config.name,
       path: vaultPath,
       createdAt: new Date(), // Would be loaded from metadata
@@ -95,7 +103,8 @@ export class VaultService {
 
   async updateVaultConfig(vaultPath: string, config: Partial<VaultConfig>): Promise<void> {
     const vault = await this.openVault(vaultPath);
-    const updatedConfig = { ...vault.config, ...config };
+    // id는 영속 고유값이므로 외부 config로 덮어쓰지 못하게 항상 기존 값을 유지한다.
+    const updatedConfig: VaultConfig = { ...vault.config, ...config, id: vault.config.id };
     const vaultConfigPath = path.join(vaultPath, VAULT_CONFIG_FILE);
     await fileService.writeFile(vaultConfigPath, JSON.stringify(updatedConfig, null, 2));
   }
