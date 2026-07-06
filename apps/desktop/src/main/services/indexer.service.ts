@@ -4,16 +4,58 @@ import { MarkdownParser } from '@memograph/core';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 
+// 내부(앱)에서 발생한 파일 변경을 watcher가 무시할 유예 시간(ms).
+// 파일 쓰기 완료 후 chokidar 이벤트가 도착하기까지의 지연을 여유있게 커버한다.
+const INTERNAL_CHANGE_WINDOW_MS = 5000;
+
 export class IndexerService {
   private watchers: Map<string, FSWatcher> = new Map();
   private parser = new MarkdownParser();
   private chokidar: any = null;
+
+  // 앱 내부에서 방금 변경한 파일 경로(정규화 key) → 변경 시각(ms).
+  // IPC 핸들러가 직접 reindex하므로, 뒤이어 오는 watcher 이벤트는 중복이라 무시한다.
+  private internalChanges: Map<string, number> = new Map();
 
   private async getChokidar() {
     if (!this.chokidar) {
       this.chokidar = await import('chokidar');
     }
     return this.chokidar;
+  }
+
+  // Windows 대소문자/경로구분자 차이를 흡수해 동일 파일을 같은 key로 매칭한다.
+  // watcher의 path.join(vaultPath, relativePath)와 핸들러의 절대경로가 같은 key가 되도록 한다.
+  private normalizeKey(p: string): string {
+    return path.resolve(p).toLowerCase();
+  }
+
+  // 앱 내부에서 파일을 변경했음을 기록한다(watcher 억제용).
+  markInternalChange(notePath: string): void {
+    this.internalChanges.set(this.normalizeKey(notePath), Date.now());
+  }
+
+  // 최근 내부 변경인지 판정한다. 매칭된 항목은 히트 여부와 무관하게 소비(delete)하고,
+  // 만료된 다른 항목들도 함께 정리한다. 테스트를 위해 now를 주입할 수 있다.
+  isRecentInternalChange(notePath: string, now: number = Date.now()): boolean {
+    const key = this.normalizeKey(notePath);
+    const ts = this.internalChanges.get(key);
+
+    let recent = false;
+    if (ts !== undefined) {
+      recent = now - ts < INTERNAL_CHANGE_WINDOW_MS;
+      // 매칭된 항목은 소비한다(한 번의 내부 변경 → 한 번의 억제).
+      this.internalChanges.delete(key);
+    }
+
+    // 만료된 잔여 항목 정리(누수 방지).
+    for (const [k, t] of this.internalChanges.entries()) {
+      if (now - t >= INTERNAL_CHANGE_WINDOW_MS) {
+        this.internalChanges.delete(k);
+      }
+    }
+
+    return recent;
   }
 
   async indexVault(vaultPath: string, vaultId: string): Promise<void> {
@@ -186,6 +228,10 @@ export class IndexerService {
 
     watcher.on('add', async (relativePath: string) => {
       const fullPath = path.join(vaultPath, relativePath);
+      if (this.isRecentInternalChange(fullPath)) {
+        console.log('internal change 무시:', fullPath);
+        return;
+      }
       console.log(`Note added: ${fullPath}`);
       try {
         // Index the new note
@@ -201,6 +247,10 @@ export class IndexerService {
 
     watcher.on('change', async (relativePath: string) => {
       const fullPath = path.join(vaultPath, relativePath);
+      if (this.isRecentInternalChange(fullPath)) {
+        console.log('internal change 무시:', fullPath);
+        return;
+      }
       console.log(`Note changed: ${fullPath}`);
       try {
         await this.reindexNote(fullPath, vaultPath, vaultId);
@@ -215,6 +265,10 @@ export class IndexerService {
 
     watcher.on('unlink', async (relativePath: string) => {
       const fullPath = path.join(vaultPath, relativePath);
+      if (this.isRecentInternalChange(fullPath)) {
+        console.log('internal change 무시:', fullPath);
+        return;
+      }
       console.log(`Note deleted: ${fullPath}`);
       try {
         await this.deleteNoteFromIndex(fullPath, vaultPath);

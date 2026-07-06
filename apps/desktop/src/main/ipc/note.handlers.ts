@@ -7,6 +7,9 @@ export function setupNoteHandlers() {
   ipcMain.handle('note:create', async (_event, input: NoteCreateInput, vaultPath: string) => {
     const note = await noteService.createNote(input);
 
+    // 방금 앱이 쓴 파일이므로 watcher의 add 이벤트를 무시하게 표시(중복 reindex 방지)
+    indexerService.markInternalChange(note.path);
+
     // Explicitly trigger re-indexing for the new note
     try {
       console.log('[note:create] Triggering re-index for new note:', note.path);
@@ -34,6 +37,9 @@ export function setupNoteHandlers() {
     ) => {
       const note = await noteService.updateNote(notePath, vaultId, update);
 
+      // 방금 앱이 쓴 파일이므로 watcher의 change 이벤트를 무시하게 표시(중복 reindex 방지)
+      indexerService.markInternalChange(notePath);
+
       // Explicitly trigger re-indexing for the updated note
       try {
         console.log('[note:update] Triggering re-index for updated note:', notePath);
@@ -49,6 +55,9 @@ export function setupNoteHandlers() {
 
   ipcMain.handle('note:delete', async (_event, notePath: string, vaultPath: string) => {
     await noteService.deleteNote(notePath);
+
+    // 방금 앱이 지운 파일이므로 watcher의 unlink 이벤트를 무시하게 표시(중복 처리 방지)
+    indexerService.markInternalChange(notePath);
 
     // Explicitly trigger index cleanup for the deleted note
     try {
@@ -67,6 +76,10 @@ export function setupNoteHandlers() {
     'note:rename',
     async (_event, oldPath: string, newPath: string, vaultPath: string, vaultId: string) => {
       await noteService.renameNote(oldPath, newPath);
+
+      // rename은 파일시스템에서 unlink(old)+add(new)로 나타나므로 양쪽 모두 표시(중복 처리 방지)
+      indexerService.markInternalChange(oldPath);
+      indexerService.markInternalChange(newPath);
 
       // Explicitly trigger index update for the renamed note
       try {
