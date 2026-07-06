@@ -34,7 +34,7 @@ export function buildTagHierarchy(tags: Tag[]): TagHierarchy[] {
     const parts = parseTag(tag.tag);
     let currentPath = '';
 
-    parts.forEach((part, index) => {
+    parts.forEach((part) => {
       const parentPath = currentPath;
       currentPath = currentPath ? `${currentPath}/${part}` : part;
 

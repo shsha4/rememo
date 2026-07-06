@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { setupIpcHandlers } from './ipc';
 import { indexerService } from './services/indexer.service';
 import { databaseService } from './services/database.service';
@@ -13,13 +14,17 @@ function createWindow() {
     ? path.join(__dirname, '../../build/icon.png')
     : path.join(process.resourcesPath, 'app.asar.unpacked/build/icon.png');
 
+  // Only pass the icon when the file actually exists — a missing path makes
+  // macOS crash with SIGTRAP when constructing the BrowserWindow.
+  const iconExists = fs.existsSync(iconPath);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     title: 'rememo',
-    icon: iconPath,
+    ...(iconExists ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -64,11 +69,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', (event) => {
+app.on('before-quit', () => {
   cleanup();
 });
 
-app.on('will-quit', (event) => {
+app.on('will-quit', () => {
   cleanup();
 });
 

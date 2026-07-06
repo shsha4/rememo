@@ -25,10 +25,10 @@ async function generateIcons() {
     console.log(`✓ Generated ${size}x${size} icon`);
   }
 
-  // Copy 256x256 as the main icon
+  // Use 1024x1024 as the main icon (electron-builder requires >=512px for macOS .icns)
   const mainIconPath = path.join(buildDir, 'icon.png');
-  fs.copyFileSync(path.join(buildDir, 'icon-256.png'), mainIconPath);
-  console.log(`✓ Generated main icon.png`);
+  fs.copyFileSync(path.join(buildDir, 'icon-1024.png'), mainIconPath);
+  console.log(`✓ Generated main icon.png (1024x1024)`);
 
   console.log('\nAll icons generated successfully!');
 }

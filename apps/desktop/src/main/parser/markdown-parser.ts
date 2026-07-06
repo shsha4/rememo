@@ -1,4 +1,4 @@
-import { WikiLink, LinkType, LinkPosition } from '../domain/link';
+import { WikiLink, LinkPosition } from '../domain/link';
 import { Tag, TagPosition } from '../domain/tag';
 import { NoteMetadata } from '../domain/note';
 

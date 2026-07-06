@@ -20,7 +20,7 @@ export interface ElectronAPI {
     update: (notePath: string, vaultId: string, update: NoteUpdateInput, vaultPath: string) => Promise<Note>;
     delete: (notePath: string, vaultPath: string) => Promise<void>;
     list: (vaultPath: string) => Promise<string[]>;
-    rename: (oldPath: string, newPath: string) => Promise<void>;
+    rename: (oldPath: string, newPath: string, vaultPath: string, vaultId: string) => Promise<void>;
     getTitle: (notePath: string) => Promise<string>;
     getRelativePath: (notePath: string, vaultPath: string) => Promise<string>;
   };
@@ -63,7 +63,7 @@ const electronAPI: ElectronAPI = {
     update: (notePath, vaultId, update, vaultPath) => ipcRenderer.invoke('note:update', notePath, vaultId, update, vaultPath),
     delete: (notePath, vaultPath) => ipcRenderer.invoke('note:delete', notePath, vaultPath),
     list: (vaultPath) => ipcRenderer.invoke('note:list', vaultPath),
-    rename: (oldPath, newPath) => ipcRenderer.invoke('note:rename', oldPath, newPath),
+    rename: (oldPath, newPath, vaultPath, vaultId) => ipcRenderer.invoke('note:rename', oldPath, newPath, vaultPath, vaultId),
     getTitle: (notePath) => ipcRenderer.invoke('note:get-title', notePath),
     getRelativePath: (notePath, vaultPath) => ipcRenderer.invoke('note:get-relative-path', notePath, vaultPath),
   },
