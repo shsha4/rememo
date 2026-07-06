@@ -19,6 +19,9 @@ export class IndexerService {
   async indexVault(vaultPath: string, vaultId: string): Promise<void> {
     console.log(`Starting indexing for vault: ${vaultPath}`);
 
+    // 매번 깨끗한 상태에서 재빌드한다(경로표기 변경·이름변경·이동으로 남은 orphan 정리).
+    databaseService.clearVaultIndex(vaultPath);
+
     // Get all markdown files in the vault
     const notes = await noteService.listNotes(vaultPath);
 
@@ -106,6 +109,25 @@ export class IndexerService {
 
     if (tagRecords.length > 0) {
       databaseService.insertTags(vaultPath, tagRecords);
+    }
+
+    // Parse and index todos (체크박스 할 일)
+    // 항상 기존 todo를 먼저 지워, 노트에서 할 일이 모두 제거된 경우도 반영한다.
+    databaseService.deleteTodosForNote(vaultPath, notePath);
+    const todos = this.parser.parseTodos(note.content);
+    const todoRecords = todos.map((todo) => ({
+      notePath,
+      text: todo.text,
+      completed: todo.completed,
+      dueDate: todo.dueDate,
+      hasTime: todo.hasTime,
+      line: todo.line,
+      positionStart: todo.position?.start || 0,
+      positionEnd: todo.position?.end || 0,
+    }));
+
+    if (todoRecords.length > 0) {
+      databaseService.insertTodos(vaultPath, todoRecords);
     }
   }
 

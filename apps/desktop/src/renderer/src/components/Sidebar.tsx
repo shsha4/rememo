@@ -13,6 +13,11 @@ function Sidebar() {
   const [editingNotePath, setEditingNotePath] = useState<string | null>(null);
   const [editingNoteName, setEditingNoteName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // 가장 최근에 선택 요청한 노트 경로. 연속 클릭 시 이전 요청의 응답을 무시하기 위해 사용.
+  const latestSelectRef = useRef<string | null>(null);
+  // 방향키 연타를 디바운스하기 위한 타이머와, 연타 중 누적되는 목표 인덱스.
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingIndexRef = useRef<number | null>(null);
 
   const { width, isResizing, handleMouseDown } = useResizable({
     initialWidth: 280,
@@ -36,6 +41,54 @@ function Sidebar() {
       }, 50);
     }
   }, [isCreatingNote, editingNotePath]);
+
+  // 방향키 위/아래로 노트 목록을 이동한다(활성 노트 기준, 끝에서 순환).
+  // 입력창·에디터에 포커스가 있을 땐 가로채지 않는다.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      if (notes.length === 0) return;
+
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.isContentEditable ||
+          el.closest('.cm-editor'))
+      ) {
+        return; // 편집 중에는 방향키 본래 동작을 유지
+      }
+
+      e.preventDefault();
+      const lastIndex = notes.length - 1;
+      // 연타 중에는 직전에 눌러 누적된 목표 인덱스(pendingIndexRef)를 기준으로 계산한다.
+      // (currentNote는 디바운스 때문에 아직 갱신 전이라 기준으로 쓰면 한 칸씩만 움직인다.)
+      const base = pendingIndexRef.current ?? (currentNote ? notes.indexOf(currentNote.path) : -1);
+      let nextIndex: number;
+      if (e.key === 'ArrowDown') {
+        nextIndex = base < 0 ? 0 : (base + 1) % notes.length;
+      } else {
+        nextIndex = base <= 0 ? lastIndex : base - 1;
+      }
+      pendingIndexRef.current = nextIndex;
+
+      // 연타는 IPC 읽기를 매번 쏘지 않고, 멈춘 뒤 마지막 목표만 한 번 연다.
+      // 이렇게 해야 뒤이은 마우스 클릭의 읽기가 방향키 읽기 뒤에 밀리지 않는다.
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        pendingIndexRef.current = null;
+        handleSelectNote(notes[nextIndex]);
+      }, 70);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    };
+    // notes/currentNote/currentVault 변경 시 재구독되어 onKeyDown이 최신 값을 캡처한다.
+  }, [notes, currentNote, currentVault]);
 
   const loadNotes = async () => {
     if (!currentVault) return;
@@ -78,8 +131,12 @@ function Sidebar() {
   const handleSelectNote = async (notePath: string) => {
     if (!currentVault) return;
 
+    latestSelectRef.current = notePath;
     try {
       const note = await electronAPI.note.read(notePath, currentVault.id);
+      // 연속 클릭 시 이전 요청의 응답이 나중에 도착해 방금 고른 노트를 덮어쓰지 않도록,
+      // 가장 최근 요청과 일치하는 응답만 반영한다.
+      if (latestSelectRef.current !== notePath) return;
       setCurrentNote(note);
     } catch (error: any) {
       console.error('Failed to read note:', error);
@@ -226,7 +283,19 @@ function Sidebar() {
                     </div>
                   ) : (
                     <div className="note-item-wrapper">
-                      <span className="note-name" onClick={() => handleSelectNote(notePath)}>
+                      <span
+                        className="note-name"
+                        onMouseDown={(e) => {
+                          if (e.button !== 0) return; // 좌클릭만
+                          // 대기 중인 방향키 이동을 취소하고 즉시 이 노트를 연다.
+                          if (navTimerRef.current) {
+                            clearTimeout(navTimerRef.current);
+                            navTimerRef.current = null;
+                          }
+                          pendingIndexRef.current = null;
+                          handleSelectNote(notePath);
+                        }}
+                      >
                         {getDisplayName(notePath)}
                       </span>
                       <button

@@ -5,6 +5,7 @@ import { setupIpcHandlers } from './ipc';
 import { setupAssetProtocol, ASSET_PROTOCOL } from './protocol/asset-protocol';
 import { indexerService } from './services/indexer.service';
 import { databaseService } from './services/database.service';
+import { todoService } from './services/todo.service';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -58,6 +59,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Windows에서 시스템 알림이 앱 신원과 함께 뜨도록 AppUserModelId를 지정한다.
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.rememo.desktop');
+  }
+
   setupAssetProtocol();
   setupIpcHandlers();
   createWindow();
@@ -97,6 +103,13 @@ function cleanup() {
     indexerService.stopAllWatchers();
   } catch (error) {
     console.error('Error stopping watchers:', error);
+  }
+
+  // Stop todo notification scheduler
+  try {
+    todoService.stopAll();
+  } catch (error) {
+    console.error('Error stopping todo scheduler:', error);
   }
 
   // Close databases

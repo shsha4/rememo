@@ -1,6 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Vault, VaultConfig } from '@memograph/core';
+import type { Vault, VaultConfig, NotificationSettings } from '@memograph/core';
 import type { Note, NoteCreateInput, NoteUpdateInput } from '@memograph/core';
+
+export interface TodoItem {
+  notePath: string;
+  noteTitle: string;
+  text: string;
+  completed: boolean;
+  dueDate?: string;
+  hasTime: boolean;
+  line: number;
+}
 
 export interface ElectronAPI {
   ping: () => Promise<string>;
@@ -56,6 +66,23 @@ export interface ElectronAPI {
       originalName?: string,
     ) => Promise<string>;
   };
+  todo: {
+    list: (vaultPath: string) => Promise<TodoItem[]>;
+    toggle: (
+      vaultPath: string,
+      notePath: string,
+      line: number,
+      vaultId: string,
+    ) => Promise<boolean | null>;
+    setDue: (
+      vaultPath: string,
+      notePath: string,
+      line: number,
+      dueDate: string | null,
+      vaultId: string,
+    ) => Promise<void>;
+    updateSettings: (vaultPath: string, settings: NotificationSettings) => Promise<void>;
+  };
 }
 
 const electronAPI: ElectronAPI = {
@@ -110,6 +137,15 @@ const electronAPI: ElectronAPI = {
   asset: {
     saveImage: (vaultPath, data, mime, originalName) =>
       ipcRenderer.invoke('asset:save-image', vaultPath, data, mime, originalName),
+  },
+  todo: {
+    list: (vaultPath) => ipcRenderer.invoke('todo:list', vaultPath),
+    toggle: (vaultPath, notePath, line, vaultId) =>
+      ipcRenderer.invoke('todo:toggle', vaultPath, notePath, line, vaultId),
+    setDue: (vaultPath, notePath, line, dueDate, vaultId) =>
+      ipcRenderer.invoke('todo:set-due', vaultPath, notePath, line, dueDate, vaultId),
+    updateSettings: (vaultPath, settings) =>
+      ipcRenderer.invoke('todo:update-settings', vaultPath, settings),
   },
 };
 

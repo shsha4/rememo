@@ -4,6 +4,7 @@ import { setupNoteHandlers } from './note.handlers';
 import { setupIndexerHandlers } from './indexer.handlers';
 import { setupSyncHandlers } from './sync.handlers';
 import { setupAssetHandlers } from './asset.handlers';
+import { setupTodoHandlers } from './todo.handlers';
 
 export function setupIpcHandlers() {
   // Ping-Pong test handler
@@ -30,4 +31,7 @@ export function setupIpcHandlers() {
 
   // Asset handlers (이미지 저장)
   setupAssetHandlers();
+
+  // Todo handlers (체크박스 할 일 + 마감 알림)
+  setupTodoHandlers();
 }

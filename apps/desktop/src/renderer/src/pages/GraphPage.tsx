@@ -131,6 +131,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -202,6 +203,21 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       console.error('Failed to load graph data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 전체 재색인: 인덱스를 깨끗이 재빌드해 고아/중복 노드를 정리하고 그래프를 새로고침한다.
+  const handleReindex = async () => {
+    if (!currentVault || reindexing) return;
+    setReindexing(true);
+    try {
+      await electronAPI.indexer.indexVault(currentVault.path, currentVault.id);
+      await loadGraphData();
+    } catch (error) {
+      console.error('Failed to reindex vault:', error);
+      alert('재색인에 실패했습니다');
+    } finally {
+      setReindexing(false);
     }
   };
 
@@ -314,6 +330,15 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <button
+          className="graph-reindex-btn"
+          onClick={handleReindex}
+          disabled={reindexing}
+          title="그래프가 실제 노트와 다르게 보일 때 눌러 다시 정리해요"
+        >
+          <span className={`reindex-icon ${reindexing ? 'spinning' : ''}`}>⟳</span>
+          {reindexing ? '정리 중...' : '새로고침'}
+        </button>
       </div>
 
       {loading ? (

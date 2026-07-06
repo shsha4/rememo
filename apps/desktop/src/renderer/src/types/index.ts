@@ -15,6 +15,12 @@ export interface VaultConfig {
   name: string;
   defaultNoteLocation?: string;
   defaultAssetLocation?: string;
+  notifications?: NotificationSettings;
+}
+
+export interface NotificationSettings {
+  enabled: boolean;
+  defaultTime: string;
 }
 
 export interface Note {

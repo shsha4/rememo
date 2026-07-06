@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { normalizeNotePath } from '@memograph/core';
 import { initializeDatabase, closeDatabase } from '../database/schema';
 import path from 'path';
 
@@ -48,11 +49,11 @@ export class DatabaseService {
     },
   ): void {
     const db = this.getDatabase(vaultPath);
+    const notePath = normalizeNotePath(note.path);
 
     // Check if note exists by path
-    const existing = db
-      .prepare('SELECT id, created_at FROM notes WHERE path = ?')
-      .get(note.path) as { id: string; created_at: number } | undefined;
+    const existing = db.prepare('SELECT id, created_at FROM notes WHERE path = ?').get(notePath) as
+      { id: string; created_at: number } | undefined;
 
     if (existing) {
       // Update existing note - keep original id and created_at
@@ -68,7 +69,7 @@ export class DatabaseService {
         note.contentHash,
         note.updatedAt.getTime(),
         note.metadata ? JSON.stringify(note.metadata) : null,
-        note.path,
+        notePath,
       );
     } else {
       // Insert new note
@@ -81,7 +82,7 @@ export class DatabaseService {
         note.id,
         note.vaultId,
         note.title,
-        note.path,
+        notePath,
         note.content,
         note.contentHash,
         note.createdAt.getTime(),
@@ -91,8 +92,9 @@ export class DatabaseService {
     }
   }
 
-  deleteNote(vaultPath: string, notePath: string): void {
+  deleteNote(vaultPath: string, rawNotePath: string): void {
     const db = this.getDatabase(vaultPath);
+    const notePath = normalizeNotePath(rawNotePath);
 
     // Delete from notes table
     const deleteNoteStmt = db.prepare('DELETE FROM notes WHERE path = ?');
@@ -107,12 +109,26 @@ export class DatabaseService {
     // Delete all tags for this note
     const deleteTagsStmt = db.prepare('DELETE FROM tags WHERE note_path = ?');
     deleteTagsStmt.run(notePath);
+
+    // Delete all todos for this note
+    const deleteTodosStmt = db.prepare('DELETE FROM todos WHERE note_path = ?');
+    deleteTodosStmt.run(notePath);
   }
 
   getNoteByPath(vaultPath: string, notePath: string): any {
     const db = this.getDatabase(vaultPath);
     const stmt = db.prepare('SELECT * FROM notes WHERE path = ?');
-    return stmt.get(notePath);
+    return stmt.get(normalizeNotePath(notePath));
+  }
+
+  /**
+   * 볼트 인덱스(notes/links/tags/todos)를 전부 비운다.
+   * indexVault가 매번 깨끗한 상태에서 재빌드하도록 해, 이름변경·이동·경로표기 변경으로
+   * 남는 orphan 행을 정리한다. (인덱스는 파일에서 재생성되는 파생 데이터라 안전)
+   */
+  clearVaultIndex(vaultPath: string): void {
+    const db = this.getDatabase(vaultPath);
+    db.exec('DELETE FROM todos; DELETE FROM tags; DELETE FROM links; DELETE FROM notes;');
   }
 
   // Link operations
@@ -134,7 +150,7 @@ export class DatabaseService {
     // First, delete existing links from this source note
     const deleteStmt = db.prepare('DELETE FROM links WHERE source_note_path = ?');
     if (links.length > 0) {
-      deleteStmt.run(links[0].sourceNotePath);
+      deleteStmt.run(normalizeNotePath(links[0].sourceNotePath));
     }
 
     // Insert new links
@@ -146,8 +162,8 @@ export class DatabaseService {
 
     for (const link of links) {
       insertStmt.run(
-        link.sourceNotePath,
-        link.targetNotePath,
+        normalizeNotePath(link.sourceNotePath),
+        normalizeNotePath(link.targetNotePath),
         link.linkText,
         link.alias || null,
         link.heading || null,
@@ -173,7 +189,7 @@ export class DatabaseService {
     // First, delete existing tags from this note
     const deleteStmt = db.prepare('DELETE FROM tags WHERE note_path = ?');
     if (tags.length > 0) {
-      deleteStmt.run(tags[0].notePath);
+      deleteStmt.run(normalizeNotePath(tags[0].notePath));
     }
 
     // Insert new tags
@@ -183,8 +199,85 @@ export class DatabaseService {
     `);
 
     for (const tag of tags) {
-      insertStmt.run(tag.notePath, tag.tag, tag.positionStart, tag.positionEnd);
+      insertStmt.run(normalizeNotePath(tag.notePath), tag.tag, tag.positionStart, tag.positionEnd);
     }
+  }
+
+  // Todo operations
+  deleteTodosForNote(vaultPath: string, notePath: string): void {
+    const db = this.getDatabase(vaultPath);
+    db.prepare('DELETE FROM todos WHERE note_path = ?').run(normalizeNotePath(notePath));
+  }
+
+  insertTodos(
+    vaultPath: string,
+    todos: Array<{
+      notePath: string;
+      text: string;
+      completed: boolean;
+      dueDate?: string;
+      hasTime: boolean;
+      line: number;
+      positionStart: number;
+      positionEnd: number;
+    }>,
+  ): void {
+    if (todos.length === 0) {
+      return;
+    }
+    const db = this.getDatabase(vaultPath);
+    const insertStmt = db.prepare(`
+      INSERT INTO todos (
+        note_path, text, completed, due_date, has_time, line, position_start, position_end
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const todo of todos) {
+      insertStmt.run(
+        normalizeNotePath(todo.notePath),
+        todo.text,
+        todo.completed ? 1 : 0,
+        todo.dueDate ?? null,
+        todo.hasTime ? 1 : 0,
+        todo.line,
+        todo.positionStart,
+        todo.positionEnd,
+      );
+    }
+  }
+
+  getAllTodos(vaultPath: string): Array<{
+    notePath: string;
+    text: string;
+    completed: boolean;
+    dueDate?: string;
+    hasTime: boolean;
+    line: number;
+  }> {
+    const db = this.getDatabase(vaultPath);
+    const rows = db
+      .prepare(
+        `SELECT note_path, text, completed, due_date, has_time, line
+         FROM todos
+         ORDER BY (due_date IS NULL), due_date ASC`,
+      )
+      .all() as Array<{
+      note_path: string;
+      text: string;
+      completed: number;
+      due_date: string | null;
+      has_time: number;
+      line: number;
+    }>;
+
+    return rows.map((r) => ({
+      notePath: r.note_path,
+      text: r.text,
+      completed: r.completed === 1,
+      dueDate: r.due_date ?? undefined,
+      hasTime: r.has_time === 1,
+      line: r.line,
+    }));
   }
 
   // Backlink queries
@@ -193,7 +286,7 @@ export class DatabaseService {
     const stmt = db.prepare(`
       SELECT * FROM backlinks WHERE note_path = ?
     `);
-    return stmt.all(notePath);
+    return stmt.all(normalizeNotePath(notePath));
   }
 
   // Search operations with improved Korean support

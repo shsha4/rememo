@@ -1,5 +1,5 @@
 import type { Note, NoteCreateInput, NoteUpdateInput } from '@memograph/core';
-import { NoteNotFoundError, NoteAlreadyExistsError } from '@memograph/core';
+import { NoteNotFoundError, NoteAlreadyExistsError, normalizeNotePath } from '@memograph/core';
 import { fileService } from './file.service';
 import path from 'path';
 import crypto from 'crypto';
@@ -18,7 +18,7 @@ export class NoteService {
       id: crypto.randomUUID(),
       vaultId: input.vaultId,
       title: input.title,
-      path: input.path,
+      path: normalizeNotePath(input.path),
       content,
       contentHash,
       createdAt: new Date(),
@@ -44,7 +44,7 @@ export class NoteService {
       id: crypto.randomUUID(),
       vaultId,
       title,
-      path: notePath,
+      path: normalizeNotePath(notePath),
       content,
       contentHash,
       createdAt: new Date(),
@@ -103,7 +103,7 @@ export class NoteService {
         const subNotes = await this.listNotesRecursive(fullPath);
         notes.push(...subNotes);
       } else if (entry.endsWith('.md')) {
-        notes.push(fullPath);
+        notes.push(normalizeNotePath(fullPath));
       }
     }
 
