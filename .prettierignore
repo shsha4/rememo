@@ -1,0 +1,10 @@
+node_modules
+dist
+release
+build
+package-lock.json
+*.md
+
+# 애드혹 디버그 스크립트 (제품/테스트 코드 아님)
+check-db.js
+test-regex.js
