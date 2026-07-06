@@ -42,12 +42,12 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
 
     setIsSaving(true);
     try {
-      const updatedNote = await electronAPI.note.update(
-        currentNote.path,
-        currentVault.id,
-        { content },
-        currentVault.path,
-      );
+      const updatedNote = await electronAPI.note.update({
+        notePath: currentNote.path,
+        vaultId: currentVault.id,
+        update: { content },
+        vaultPath: currentVault.path,
+      });
       setCurrentNote(updatedNote);
       // Trigger graph refresh to update entity mentions
       triggerGraphRefresh();
@@ -68,7 +68,7 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
     if (!confirmed) return;
 
     try {
-      await electronAPI.note.delete(currentNote.path, currentVault.path);
+      await electronAPI.note.delete({ notePath: currentNote.path, vaultPath: currentVault.path });
       setCurrentNote(null);
       // onNoteDeleted가 appKey를 올려 EditorPage(내부 Sidebar 포함)를 통째로 리마운트하므로
       // 별도의 sidebarKey로 Sidebar만 다시 마운트할 필요가 없다(이중 리마운트 제거).

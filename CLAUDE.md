@@ -27,6 +27,7 @@ rememo/
         │   ├── protocol/   # 커스텀 스킴 핸들러 (예: rememo-asset:// 로컬 이미지 서빙)
         │   └── database/   # SQLite 스키마
         ├── preload/        # contextBridge로 안전한 API 노출
+        ├── shared/ipc/     # main·preload·renderer가 공유하는 IPC request 타입 (type-only, 도메인별 파일 + 배럴)
         └── renderer/src/   # React UI
             ├── pages/      # 화면 단위 (Editor/Graph/Search/Vault)
             ├── components/ # 재사용 컴포넌트
@@ -47,6 +48,7 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 ```
 - renderer는 Node API에 직접 접근하지 않는다. 반드시 preload가 노출한 `window.electronAPI`를 통한다.
 - 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다. (이미지 asset은 링크/엔티티 인덱싱 대상이 아니므로 `asset:save-image`는 재인덱싱을 트리거하지 않는다.)
+- **watcher 이중 재인덱싱 방지**: chokidar watcher(`indexer.service.ts`)도 `**/*.md` 변경 시 재인덱싱한다. 앱이 직접 쓴 파일은 핸들러가 이미 재인덱싱하므로, 파일 쓰기 직후 `indexerService.markInternalChange(path)`를 호출해 뒤이어 오는 watcher 이벤트(add/change/unlink)를 무시하게 한다(외부 에디터 편집만 watcher가 처리). **새 노트 뮤테이션 핸들러를 추가하면 이 `markInternalChange` 호출도 반드시 함께 넣는다**(rename처럼 old/new 두 경로가 바뀌면 둘 다 표시).
 - **로컬 이미지 렌더링**: `webSecurity`가 켜져 있어 프리뷰에서 `file://`로 로컬 이미지를 못 읽는다. 그래서 커스텀 스킴 `rememo-asset://`(main/protocol/)을 등록해 vault 내부 이미지 파일만 서빙한다. 프리뷰(`MarkdownPreview`)는 이미지 src를 이 URL로 변환하되, **반드시 react-markdown의 `defaultUrlTransform`을 먼저 적용**해 `javascript:` 등 위험 스킴을 새니타이즈한다. 프로토콜 핸들러는 이미지 확장자 화이트리스트 + `..` 경로탈출 차단을 적용한다.
 
 ---
@@ -66,7 +68,9 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
   ```
 - **도메인 에러**: 전용 에러 클래스를 만든다. 예) `NoteNotFoundError`, `NoteAlreadyExistsError`. 서비스는 실패 시 이 에러를 throw한다.
 - **IPC 채널명**: `'도메인:동작'` 케밥/콜론 규칙. 예) `note:create`, `vault:open`, `note:rename`.
-- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle`로 등록. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
+- **IPC 인자**: 인자가 1개 이상인 채널은 **채널당 단일 request object**(`{ ... }`) 하나만 받는다(positional 인자 금지 — 같은 타입 인자 순서 뒤섞임 방지). 인자 0개 채널(`ping`, `system:get-platform`, `vault:select-folder`, `sync:*`의 인자 없는 것들)은 그대로 둔다. request 타입은 `apps/desktop/src/shared/ipc/`에 도메인별로 `<Domain><Action>Request`로 정의하고 **main·preload·renderer 세 계층이 동일 타입을 공유**한다(이 디렉터리는 type-only, `@memograph/core`의 도메인 타입만 type-only import).
+- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle('도메인:동작', ipcHandler(async (_event, req: XxxRequest) => {...}))`로 등록, 본문에서 `req.*`를 구조분해해 서비스를 호출한다. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
+- **IPC 응답 봉투**: 모든 IPC 응답은 와이어에서 `IpcResult<T>`(`shared/ipc/result.ts`) 봉투로 표준화한다. main 핸들러는 `ipcHandler()`(`main/ipc/ipc-result.ts`)로 감싸 성공/실패를 봉투화하고, preload가 unwrap해 성공 시 `data`를 반환·실패 시 `error.code`를 name으로 갖는 Error를 throw한다(renderer는 기존처럼 `Promise<T>`를 받고 try/catch로 처리).
 - **타입 전용 import**는 `import type { ... }`을 쓴다.
 - **Zustand 스토어**: `interface XxxState`에 상태+액션을 함께 선언하고 `create<XxxState>((set) => ({...}))` 패턴, `useXxxStore`로 export.
 - **파일명**: 서비스 `*.service.ts`, IPC 핸들러 `*.handlers.ts`, 컴포넌트 `PascalCase.tsx`(+동명 `.css`), 스토어 `*.store.ts`.

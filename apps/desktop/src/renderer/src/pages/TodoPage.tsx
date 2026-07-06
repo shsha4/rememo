@@ -39,7 +39,7 @@ function TodoPage({ onNavigateToEditor }: TodoPageProps) {
     if (!currentVault) return;
     setLoading(true);
     try {
-      const list = await electronAPI.todo.list(currentVault.path);
+      const list = await electronAPI.todo.list({ vaultPath: currentVault.path });
       setTodos(list);
     } catch (error) {
       console.error('Failed to load todos:', error);
@@ -58,7 +58,7 @@ function TodoPage({ onNavigateToEditor }: TodoPageProps) {
   const refreshCurrentNoteIfMatches = async (notePath: string) => {
     if (!currentVault || currentNote?.path !== notePath) return;
     try {
-      const note = await electronAPI.note.read(notePath, currentVault.id);
+      const note = await electronAPI.note.read({ notePath, vaultId: currentVault.id });
       setCurrentNote(note);
     } catch (error) {
       console.error('Failed to refresh current note:', error);
@@ -68,7 +68,12 @@ function TodoPage({ onNavigateToEditor }: TodoPageProps) {
   const handleToggle = async (todo: TodoItem) => {
     if (!currentVault) return;
     try {
-      await electronAPI.todo.toggle(currentVault.path, todo.notePath, todo.line, currentVault.id);
+      await electronAPI.todo.toggle({
+        vaultPath: currentVault.path,
+        notePath: todo.notePath,
+        line: todo.line,
+        vaultId: currentVault.id,
+      });
       await loadTodos();
       await refreshCurrentNoteIfMatches(todo.notePath);
     } catch (error) {
@@ -87,13 +92,13 @@ function TodoPage({ onNavigateToEditor }: TodoPageProps) {
       dueDate = oldTime ? `${pickedDate}T${oldTime}` : pickedDate;
     }
     try {
-      await electronAPI.todo.setDue(
-        currentVault.path,
-        todo.notePath,
-        todo.line,
+      await electronAPI.todo.setDue({
+        vaultPath: currentVault.path,
+        notePath: todo.notePath,
+        line: todo.line,
         dueDate,
-        currentVault.id,
-      );
+        vaultId: currentVault.id,
+      });
       await loadTodos();
       await refreshCurrentNoteIfMatches(todo.notePath);
     } catch (error) {
@@ -104,7 +109,10 @@ function TodoPage({ onNavigateToEditor }: TodoPageProps) {
   const handleOpenNote = async (todo: TodoItem) => {
     if (!currentVault) return;
     try {
-      const note = await electronAPI.note.read(todo.notePath, currentVault.id);
+      const note = await electronAPI.note.read({
+        notePath: todo.notePath,
+        vaultId: currentVault.id,
+      });
       setCurrentNote(note);
       onNavigateToEditor();
     } catch (error) {

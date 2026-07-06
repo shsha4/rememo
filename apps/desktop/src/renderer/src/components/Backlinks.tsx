@@ -33,7 +33,10 @@ function Backlinks({ notePath }: BacklinksProps) {
 
     setLoading(true);
     try {
-      const results = await electronAPI.indexer.getBacklinks(currentVault.path, notePath);
+      const results = await electronAPI.indexer.getBacklinks({
+        vaultPath: currentVault.path,
+        notePath,
+      });
       setBacklinks(results || []);
     } catch (error) {
       console.error('Failed to load backlinks:', error);

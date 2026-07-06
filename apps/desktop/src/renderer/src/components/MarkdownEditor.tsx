@@ -47,12 +47,12 @@ function MarkdownEditor({ value, onChange, onSave, vaultPath }: MarkdownEditorPr
           const bytes = new Uint8Array(await file.arrayBuffer());
           // 드롭은 원본 파일명을 유지하고, 붙여넣기는 Pasted-image 규칙을 쓴다.
           const originalName = origin === 'drop' ? file.name || undefined : undefined;
-          const relativePath = await electronAPI.asset.saveImage(
+          const relativePath = await electronAPI.asset.saveImage({
             vaultPath,
-            bytes,
-            file.type,
+            data: bytes,
+            mime: file.type,
             originalName,
-          );
+          });
           // 저장(비동기) 사이에 노트가 바뀌어 에디터가 언마운트됐으면 다른 노트를
           // 오염시키지 않도록 삽입을 건너뛴다. 이미지 파일 자체는 이미 저장돼 있다.
           if (!view.dom.isConnected) return;

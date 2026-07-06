@@ -70,7 +70,7 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
     if (!currentVault) return;
 
     try {
-      const allTags = await electronAPI.indexer.getAllTags(currentVault.path);
+      const allTags = await electronAPI.indexer.getAllTags({ vaultPath: currentVault.path });
       setTags(allTags);
     } catch (error) {
       console.error('Failed to load tags:', error);
@@ -88,10 +88,16 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
       let searchResults: any[] = [];
 
       if (searchMode === 'fulltext') {
-        searchResults = await electronAPI.indexer.searchNotes(currentVault.path, query.trim());
+        searchResults = await electronAPI.indexer.searchNotes({
+          vaultPath: currentVault.path,
+          query: query.trim(),
+        });
       } else if (searchMode === 'tags') {
         const tagQuery = query.trim().startsWith('#') ? query.trim().substring(1) : query.trim();
-        searchResults = await electronAPI.indexer.searchByTag(currentVault.path, tagQuery);
+        searchResults = await electronAPI.indexer.searchByTag({
+          vaultPath: currentVault.path,
+          tag: tagQuery,
+        });
       }
 
       setResults(searchResults);
@@ -112,7 +118,10 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
     // Directly search with the tag without waiting for state update
     setLoading(true);
     try {
-      const searchResults = await electronAPI.indexer.searchByTag(currentVault.path, tag);
+      const searchResults = await electronAPI.indexer.searchByTag({
+        vaultPath: currentVault.path,
+        tag,
+      });
       setResults(searchResults);
     } catch (error) {
       console.error('Search failed:', error);
@@ -127,7 +136,7 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
 
     try {
       // Load the note
-      const note = await electronAPI.note.read(result.path, currentVault.id);
+      const note = await electronAPI.note.read({ notePath: result.path, vaultId: currentVault.id });
       setCurrentNote(note);
       onNavigateToEditor();
     } catch (error) {

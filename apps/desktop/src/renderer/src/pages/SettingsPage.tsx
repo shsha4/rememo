@@ -20,7 +20,7 @@ function SettingsPage() {
     setSaving(true);
     try {
       const settings: NotificationSettings = { enabled, defaultTime };
-      await electronAPI.todo.updateSettings(currentVault.path, settings);
+      await electronAPI.todo.updateSettings({ vaultPath: currentVault.path, settings });
 
       // 스토어의 currentVault도 갱신해 화면 상태를 일치시킨다.
       setCurrentVault({

@@ -89,7 +89,7 @@ function Sidebar() {
     if (!currentVault) return;
 
     try {
-      const noteList = await electronAPI.note.list(currentVault.path);
+      const noteList = await electronAPI.note.list({ vaultPath: currentVault.path });
       setNotes(noteList);
     } catch (error: any) {
       console.error('Failed to load notes:', error);
@@ -103,15 +103,15 @@ function Sidebar() {
       const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
       const notePath = `${currentVault.path}/${notesDir}/${newNoteName.trim()}.md`;
 
-      const note = await electronAPI.note.create(
-        {
+      const note = await electronAPI.note.create({
+        input: {
           vaultId: currentVault.id,
           title: newNoteName.trim(),
           path: notePath,
           content: `# ${newNoteName.trim()}\n\n`,
         },
-        currentVault.path,
-      );
+        vaultPath: currentVault.path,
+      });
 
       setCurrentNote(note);
       setNewNoteName('');
@@ -128,7 +128,7 @@ function Sidebar() {
 
     latestSelectRef.current = notePath;
     try {
-      const note = await electronAPI.note.read(notePath, currentVault.id);
+      const note = await electronAPI.note.read({ notePath, vaultId: currentVault.id });
       // 연속 클릭 시 이전 요청의 응답이 나중에 도착해 방금 고른 노트를 덮어쓰지 않도록,
       // 가장 최근 요청과 일치하는 응답만 반영한다.
       if (latestSelectRef.current !== notePath) return;
@@ -161,11 +161,19 @@ function Sidebar() {
       }
 
       // Rename the file
-      await electronAPI.note.rename(oldPath, newPath, currentVault.path, currentVault.id);
+      await electronAPI.note.rename({
+        oldPath,
+        newPath,
+        vaultPath: currentVault.path,
+        vaultId: currentVault.id,
+      });
 
       // Update current note if it was the one being renamed
       if (currentNote?.path === oldPath) {
-        const renamedNote = await electronAPI.note.read(newPath, currentVault.id);
+        const renamedNote = await electronAPI.note.read({
+          notePath: newPath,
+          vaultId: currentVault.id,
+        });
         setCurrentNote(renamedNote);
       }
 

@@ -1,6 +1,49 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Vault, VaultConfig, NotificationSettings } from '@memograph/core';
-import type { Note, NoteCreateInput, NoteUpdateInput } from '@memograph/core';
+import type { Vault } from '@memograph/core';
+import type { Note } from '@memograph/core';
+import type {
+  VaultCreateRequest,
+  VaultOpenRequest,
+  VaultIsValidRequest,
+  VaultUpdateConfigRequest,
+  NoteCreateRequest,
+  NoteReadRequest,
+  NoteUpdateRequest,
+  NoteDeleteRequest,
+  NoteListRequest,
+  NoteRenameRequest,
+  NoteGetTitleRequest,
+  NoteGetRelativePathRequest,
+  IndexerIndexVaultRequest,
+  IndexerGetBacklinksRequest,
+  IndexerSearchNotesRequest,
+  IndexerSearchByTagRequest,
+  IndexerGetAllTagsRequest,
+  IndexerGetGraphDataRequest,
+  IndexerStartWatchingRequest,
+  IndexerStopWatchingRequest,
+  SyncBackupVaultRequest,
+  SyncDeleteBackupRequest,
+  SyncRestoreVaultRequest,
+  AssetSaveImageRequest,
+  TodoListRequest,
+  TodoToggleRequest,
+  TodoSetDueRequest,
+  TodoUpdateSettingsRequest,
+} from '../shared/ipc';
+import type { IpcResult } from '../shared/ipc';
+
+// 와이어에서 IpcResult<T> 봉투를 벗겨 성공 시 data(T)를 반환하고,
+// 실패 시 error.code를 name으로 갖는 Error를 throw한다.
+async function invoke<T>(channel: string, req?: unknown): Promise<T> {
+  const res = (await ipcRenderer.invoke(channel, req)) as IpcResult<T>;
+  if (!res.success) {
+    const err = new Error(res.error.message);
+    err.name = res.error.code;
+    throw err;
+  }
+  return res.data;
+}
 
 export interface TodoItem {
   notePath: string;
@@ -19,133 +62,102 @@ export interface ElectronAPI {
   };
   vault: {
     selectFolder: () => Promise<string | null>;
-    create: (vaultPath: string, name: string) => Promise<Vault>;
-    open: (vaultPath: string) => Promise<Vault>;
-    isValid: (vaultPath: string) => Promise<boolean>;
-    updateConfig: (vaultPath: string, config: Partial<VaultConfig>) => Promise<void>;
+    create: (req: VaultCreateRequest) => Promise<Vault>;
+    open: (req: VaultOpenRequest) => Promise<Vault>;
+    isValid: (req: VaultIsValidRequest) => Promise<boolean>;
+    updateConfig: (req: VaultUpdateConfigRequest) => Promise<void>;
   };
   note: {
-    create: (input: NoteCreateInput, vaultPath: string) => Promise<Note>;
-    read: (notePath: string, vaultId: string) => Promise<Note>;
-    update: (
-      notePath: string,
-      vaultId: string,
-      update: NoteUpdateInput,
-      vaultPath: string,
-    ) => Promise<Note>;
-    delete: (notePath: string, vaultPath: string) => Promise<void>;
-    list: (vaultPath: string) => Promise<string[]>;
-    rename: (oldPath: string, newPath: string, vaultPath: string, vaultId: string) => Promise<void>;
-    getTitle: (notePath: string) => Promise<string>;
-    getRelativePath: (notePath: string, vaultPath: string) => Promise<string>;
+    create: (req: NoteCreateRequest) => Promise<Note>;
+    read: (req: NoteReadRequest) => Promise<Note>;
+    update: (req: NoteUpdateRequest) => Promise<Note>;
+    delete: (req: NoteDeleteRequest) => Promise<void>;
+    list: (req: NoteListRequest) => Promise<string[]>;
+    rename: (req: NoteRenameRequest) => Promise<void>;
+    getTitle: (req: NoteGetTitleRequest) => Promise<string>;
+    getRelativePath: (req: NoteGetRelativePathRequest) => Promise<string>;
   };
   indexer: {
-    indexVault: (vaultPath: string, vaultId: string) => Promise<void>;
-    getBacklinks: (vaultPath: string, notePath: string) => Promise<any[]>;
-    searchNotes: (vaultPath: string, query: string) => Promise<any[]>;
-    searchByTag: (vaultPath: string, tag: string) => Promise<any[]>;
-    getAllTags: (vaultPath: string) => Promise<string[]>;
-    getGraphData: (vaultPath: string) => Promise<{ nodes: any[]; edges: any[] }>;
-    startWatching: (vaultPath: string, vaultId: string) => Promise<void>;
-    stopWatching: (vaultPath: string) => Promise<void>;
+    indexVault: (req: IndexerIndexVaultRequest) => Promise<void>;
+    getBacklinks: (req: IndexerGetBacklinksRequest) => Promise<any[]>;
+    searchNotes: (req: IndexerSearchNotesRequest) => Promise<any[]>;
+    searchByTag: (req: IndexerSearchByTagRequest) => Promise<any[]>;
+    getAllTags: (req: IndexerGetAllTagsRequest) => Promise<string[]>;
+    getGraphData: (req: IndexerGetGraphDataRequest) => Promise<{ nodes: any[]; edges: any[] }>;
+    startWatching: (req: IndexerStartWatchingRequest) => Promise<void>;
+    stopWatching: (req: IndexerStopWatchingRequest) => Promise<void>;
   };
   sync: {
     authenticate: () => Promise<boolean>;
     isAuthenticated: () => Promise<boolean>;
     signOut: () => Promise<void>;
-    backupVault: (vaultPath: string) => Promise<string>;
+    backupVault: (req: SyncBackupVaultRequest) => Promise<string>;
     listBackups: () => Promise<Array<{ id: string; name: string; createdAt: Date }>>;
-    deleteBackup: (backupId: string) => Promise<void>;
-    restoreVault: (backupId: string, targetPath: string) => Promise<void>;
+    deleteBackup: (req: SyncDeleteBackupRequest) => Promise<void>;
+    restoreVault: (req: SyncRestoreVaultRequest) => Promise<void>;
   };
   asset: {
-    saveImage: (
-      vaultPath: string,
-      data: Uint8Array,
-      mime: string,
-      originalName?: string,
-    ) => Promise<string>;
+    saveImage: (req: AssetSaveImageRequest) => Promise<string>;
   };
   todo: {
-    list: (vaultPath: string) => Promise<TodoItem[]>;
-    toggle: (
-      vaultPath: string,
-      notePath: string,
-      line: number,
-      vaultId: string,
-    ) => Promise<boolean | null>;
-    setDue: (
-      vaultPath: string,
-      notePath: string,
-      line: number,
-      dueDate: string | null,
-      vaultId: string,
-    ) => Promise<void>;
-    updateSettings: (vaultPath: string, settings: NotificationSettings) => Promise<void>;
+    list: (req: TodoListRequest) => Promise<TodoItem[]>;
+    toggle: (req: TodoToggleRequest) => Promise<boolean | null>;
+    setDue: (req: TodoSetDueRequest) => Promise<void>;
+    updateSettings: (req: TodoUpdateSettingsRequest) => Promise<void>;
   };
 }
 
 const electronAPI: ElectronAPI = {
-  ping: () => ipcRenderer.invoke('ping'),
+  ping: () => invoke<string>('ping'),
   system: {
-    getPlatform: () => ipcRenderer.invoke('system:get-platform'),
+    getPlatform: () => invoke<string>('system:get-platform'),
   },
   vault: {
-    selectFolder: () => ipcRenderer.invoke('vault:select-folder'),
-    create: (vaultPath, name) => ipcRenderer.invoke('vault:create', vaultPath, name),
-    open: (vaultPath) => ipcRenderer.invoke('vault:open', vaultPath),
-    isValid: (vaultPath) => ipcRenderer.invoke('vault:is-valid', vaultPath),
-    updateConfig: (vaultPath, config) =>
-      ipcRenderer.invoke('vault:update-config', vaultPath, config),
+    selectFolder: () => invoke<string | null>('vault:select-folder'),
+    create: (req) => invoke<Vault>('vault:create', req),
+    open: (req) => invoke<Vault>('vault:open', req),
+    isValid: (req) => invoke<boolean>('vault:is-valid', req),
+    updateConfig: (req) => invoke<void>('vault:update-config', req),
   },
   note: {
-    create: (input, vaultPath) => ipcRenderer.invoke('note:create', input, vaultPath),
-    read: (notePath, vaultId) => ipcRenderer.invoke('note:read', notePath, vaultId),
-    update: (notePath, vaultId, update, vaultPath) =>
-      ipcRenderer.invoke('note:update', notePath, vaultId, update, vaultPath),
-    delete: (notePath, vaultPath) => ipcRenderer.invoke('note:delete', notePath, vaultPath),
-    list: (vaultPath) => ipcRenderer.invoke('note:list', vaultPath),
-    rename: (oldPath, newPath, vaultPath, vaultId) =>
-      ipcRenderer.invoke('note:rename', oldPath, newPath, vaultPath, vaultId),
-    getTitle: (notePath) => ipcRenderer.invoke('note:get-title', notePath),
-    getRelativePath: (notePath, vaultPath) =>
-      ipcRenderer.invoke('note:get-relative-path', notePath, vaultPath),
+    create: (req) => invoke<Note>('note:create', req),
+    read: (req) => invoke<Note>('note:read', req),
+    update: (req) => invoke<Note>('note:update', req),
+    delete: (req) => invoke<void>('note:delete', req),
+    list: (req) => invoke<string[]>('note:list', req),
+    rename: (req) => invoke<void>('note:rename', req),
+    getTitle: (req) => invoke<string>('note:get-title', req),
+    getRelativePath: (req) => invoke<string>('note:get-relative-path', req),
   },
   indexer: {
-    indexVault: (vaultPath, vaultId) =>
-      ipcRenderer.invoke('indexer:index-vault', vaultPath, vaultId),
-    getBacklinks: (vaultPath, notePath) =>
-      ipcRenderer.invoke('indexer:get-backlinks', vaultPath, notePath),
-    searchNotes: (vaultPath, query) => ipcRenderer.invoke('indexer:search-notes', vaultPath, query),
-    searchByTag: (vaultPath, tag) => ipcRenderer.invoke('indexer:search-by-tag', vaultPath, tag),
-    getAllTags: (vaultPath) => ipcRenderer.invoke('indexer:get-all-tags', vaultPath),
-    getGraphData: (vaultPath) => ipcRenderer.invoke('indexer:get-graph-data', vaultPath),
-    startWatching: (vaultPath, vaultId) =>
-      ipcRenderer.invoke('indexer:start-watching', vaultPath, vaultId),
-    stopWatching: (vaultPath) => ipcRenderer.invoke('indexer:stop-watching', vaultPath),
+    indexVault: (req) => invoke<void>('indexer:index-vault', req),
+    getBacklinks: (req) => invoke<unknown[]>('indexer:get-backlinks', req),
+    searchNotes: (req) => invoke<unknown[]>('indexer:search-notes', req),
+    searchByTag: (req) => invoke<unknown[]>('indexer:search-by-tag', req),
+    getAllTags: (req) => invoke<string[]>('indexer:get-all-tags', req),
+    getGraphData: (req) =>
+      invoke<{ nodes: unknown[]; edges: unknown[] }>('indexer:get-graph-data', req),
+    startWatching: (req) => invoke<void>('indexer:start-watching', req),
+    stopWatching: (req) => invoke<void>('indexer:stop-watching', req),
   },
   sync: {
-    authenticate: () => ipcRenderer.invoke('sync:authenticate'),
-    isAuthenticated: () => ipcRenderer.invoke('sync:is-authenticated'),
-    signOut: () => ipcRenderer.invoke('sync:sign-out'),
-    backupVault: (vaultPath) => ipcRenderer.invoke('sync:backup-vault', vaultPath),
-    listBackups: () => ipcRenderer.invoke('sync:list-backups'),
-    deleteBackup: (backupId) => ipcRenderer.invoke('sync:delete-backup', backupId),
-    restoreVault: (backupId, targetPath) =>
-      ipcRenderer.invoke('sync:restore-vault', backupId, targetPath),
+    authenticate: () => invoke<boolean>('sync:authenticate'),
+    isAuthenticated: () => invoke<boolean>('sync:is-authenticated'),
+    signOut: () => invoke<void>('sync:sign-out'),
+    backupVault: (req) => invoke<string>('sync:backup-vault', req),
+    listBackups: () =>
+      invoke<Array<{ id: string; name: string; createdAt: Date }>>('sync:list-backups'),
+    deleteBackup: (req) => invoke<void>('sync:delete-backup', req),
+    restoreVault: (req) => invoke<void>('sync:restore-vault', req),
   },
   asset: {
-    saveImage: (vaultPath, data, mime, originalName) =>
-      ipcRenderer.invoke('asset:save-image', vaultPath, data, mime, originalName),
+    saveImage: (req) => invoke<string>('asset:save-image', req),
   },
   todo: {
-    list: (vaultPath) => ipcRenderer.invoke('todo:list', vaultPath),
-    toggle: (vaultPath, notePath, line, vaultId) =>
-      ipcRenderer.invoke('todo:toggle', vaultPath, notePath, line, vaultId),
-    setDue: (vaultPath, notePath, line, dueDate, vaultId) =>
-      ipcRenderer.invoke('todo:set-due', vaultPath, notePath, line, dueDate, vaultId),
-    updateSettings: (vaultPath, settings) =>
-      ipcRenderer.invoke('todo:update-settings', vaultPath, settings),
+    list: (req) => invoke<TodoItem[]>('todo:list', req),
+    toggle: (req) => invoke<boolean | null>('todo:toggle', req),
+    setDue: (req) => invoke<void>('todo:set-due', req),
+    updateSettings: (req) => invoke<void>('todo:update-settings', req),
   },
 };
 
