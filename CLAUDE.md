@@ -132,8 +132,14 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 | 7 | **코드 리뷰** | `code-reviewer` 서브에이전트(병렬) 또는 `/code-review` |
 | 8 | **커밋 & 푸시 (+ PR)** | 아래 규칙. PR 생성은 **사용자에게 질의 후** 결정 |
 
+### ★ 브랜치 규칙 (필수 — 예외 없음)
+- **신규 작업은 무조건 새 브랜치를 먼저 생성하고 거기서 진행한다. `main`에서 직접 작업/커밋 금지.**
+- 작업 시작 시 코드에 손대기 전에 브랜치부터 만든다: `git switch -c <타입>/<요약>` (예: `feat/ci-release`, `fix/sqlite-bindings`, `docs/claude-md`).
+- 이미 `main`에 있는 상태에서 작업 요청을 받으면, **가장 먼저 브랜치를 생성**한 뒤 나머지를 진행한다.
+- 예외: 사용자가 명시적으로 "main에서 해라"라고 지시한 경우에만.
+
 ### 커밋/PR 규칙
-- 기본 브랜치는 `main`. 작업은 새 브랜치에서 한다.
+- 기본 브랜치는 `main`. 작업은 **항상** 새 브랜치에서 한다(위 브랜치 규칙 참고).
 - 커밋/푸시/PR은 **사용자가 요청할 때만** 수행한다.
 - PR 생성 여부는 항상 사용자에게 확인한다(선택 사항).
 
@@ -153,6 +159,9 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 ## 6. 알려진 제약 / 함정
 
 - **better-sqlite3는 네이티브 모듈**이다. Electron 버전과 ABI가 맞아야 하며 `asarUnpack` 처리됨. 설치 문제 시 `@electron/rebuild` 사용.
+  - **로컬 개발/빌드에는 네이티브 컴파일 툴체인이 필요하다.** Windows = Visual Studio Build Tools의 **"Desktop development with C++"** 워크로드(MSVC + Windows SDK), macOS = Xcode Command Line Tools(`xcode-select --install`).
+  - `npm install` 후 `node-v148`(Electron ABI) 바인딩이 없어 `dev`/`build`가 "Could not locate the bindings file"로 죽으면 → `npx electron-rebuild -f -w better-sqlite3`(또는 `apps/desktop`에서 `npx electron-builder install-app-deps`)로 Electron용 재빌드.
+  - **CI(GitHub Actions)에서 빌드하면 로컬 툴체인이 필요 없다** — 러너에 MSVC/Xcode가 이미 있어 재빌드가 자동으로 된다(§7 `release.yml`).
 - 자동 저장 없음(수동 `Ctrl+S`). 동시 편집 충돌 해결 없음.
 - 루트의 `test-regex.js`, `apps/desktop/src`가 아닌 `apps/desktop/check-db.js`는 **애드혹 디버그 스크립트**다. 테스트/제품 코드가 아니며 lint/prettier 대상에서 제외되어 있다. 새 코드가 이들에 의존하지 않게 한다.
 - `packages/core`는 `unified`/`remark` 의존성을 갖고 있으나 현재 커스텀 정규식 파서만 사용한다(해당 의존성은 미사용). 파서를 unified 기반으로 재작성할 때만 사용한다.
@@ -166,4 +175,5 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 - `.claude/skills/test-writer/` — 테스트 작성 스킬 (파이프라인 6)
 - `.claude/commands/feature.md` — 8단계 파이프라인 오케스트레이션 커맨드
 - `.claude/agents/code-reviewer.md` — 코드 리뷰 서브에이전트 (파이프라인 7, 병렬)
+- `.github/workflows/release.yml` — 크로스 플랫폼 배포 CI. `v*` 태그 push 시 windows/macOS 러너에서 빌드해 `.exe`/`.dmg`를 GitHub Release에 첨부(수동 실행 시 Artifacts). 로컬 툴체인 없이 배포 가능.
 - 빌트인 활용: `/code-review`, `/security-review`, `verify`, `run`
