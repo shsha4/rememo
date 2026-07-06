@@ -1,13 +1,20 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, protocol } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { setupIpcHandlers } from './ipc';
+import { setupAssetProtocol, ASSET_PROTOCOL } from './protocol/asset-protocol';
 import { indexerService } from './services/indexer.service';
 import { databaseService } from './services/database.service';
 
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+// 커스텀 스킴은 app ready 이전에 privileged로 등록해야 <img>/fetch에서 로드 가능하다.
+protocol.registerSchemesAsPrivileged([
+  // <img> 로딩에 필요한 최소 권한만 부여한다 (fetch/CSP 우회는 불필요).
+  { scheme: ASSET_PROTOCOL, privileges: { standard: true, secure: true } },
+]);
 
 function createWindow() {
   const iconPath = isDev
@@ -51,6 +58,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setupAssetProtocol();
   setupIpcHandlers();
   createWindow();
 

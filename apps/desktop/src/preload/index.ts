@@ -48,6 +48,14 @@ export interface ElectronAPI {
     deleteBackup: (backupId: string) => Promise<void>;
     restoreVault: (backupId: string, targetPath: string) => Promise<void>;
   };
+  asset: {
+    saveImage: (
+      vaultPath: string,
+      data: Uint8Array,
+      mime: string,
+      originalName?: string,
+    ) => Promise<string>;
+  };
 }
 
 const electronAPI: ElectronAPI = {
@@ -98,6 +106,10 @@ const electronAPI: ElectronAPI = {
     deleteBackup: (backupId) => ipcRenderer.invoke('sync:delete-backup', backupId),
     restoreVault: (backupId, targetPath) =>
       ipcRenderer.invoke('sync:restore-vault', backupId, targetPath),
+  },
+  asset: {
+    saveImage: (vaultPath, data, mime, originalName) =>
+      ipcRenderer.invoke('asset:save-image', vaultPath, data, mime, originalName),
   },
 };
 

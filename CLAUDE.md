@@ -22,14 +22,16 @@ rememo/
 └── apps/desktop/           # Electron 앱
     └── src/
         ├── main/           # Main 프로세스 (Node 권한)
-        │   ├── services/   # 비즈니스 로직 (파일 IO, DB, 인덱싱)
+        │   ├── services/   # 비즈니스 로직 (파일 IO, DB, 인덱싱, 이미지 asset)
         │   ├── ipc/        # IPC 핸들러 (renderer ↔ main 경계)
+        │   ├── protocol/   # 커스텀 스킴 핸들러 (예: rememo-asset:// 로컬 이미지 서빙)
         │   └── database/   # SQLite 스키마
         ├── preload/        # contextBridge로 안전한 API 노출
         └── renderer/src/   # React UI
             ├── pages/      # 화면 단위 (Editor/Graph/Search/Vault)
             ├── components/ # 재사용 컴포넌트
             ├── stores/     # Zustand 상태
+            ├── utils/      # 순수 유틸 (Node API 없이 문자열/URL 변환 등)
             └── api/        # preload 브리지 호출 래퍼
 ```
 
@@ -44,7 +46,8 @@ rememo/
 renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle → service → 파일/DB
 ```
 - renderer는 Node API에 직접 접근하지 않는다. 반드시 preload가 노출한 `window.electronAPI`를 통한다.
-- 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다.
+- 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다. (이미지 asset은 링크/엔티티 인덱싱 대상이 아니므로 `asset:save-image`는 재인덱싱을 트리거하지 않는다.)
+- **로컬 이미지 렌더링**: `webSecurity`가 켜져 있어 프리뷰에서 `file://`로 로컬 이미지를 못 읽는다. 그래서 커스텀 스킴 `rememo-asset://`(main/protocol/)을 등록해 vault 내부 이미지 파일만 서빙한다. 프리뷰(`MarkdownPreview`)는 이미지 src를 이 URL로 변환하되, **반드시 react-markdown의 `defaultUrlTransform`을 먼저 적용**해 `javascript:` 등 위험 스킴을 새니타이즈한다. 프로토콜 핸들러는 이미지 확장자 화이트리스트 + `..` 경로탈출 차단을 적용한다.
 
 ---
 

@@ -3,6 +3,7 @@ import { setupVaultHandlers } from './vault.handlers';
 import { setupNoteHandlers } from './note.handlers';
 import { setupIndexerHandlers } from './indexer.handlers';
 import { setupSyncHandlers } from './sync.handlers';
+import { setupAssetHandlers } from './asset.handlers';
 
 export function setupIpcHandlers() {
   // Ping-Pong test handler
@@ -26,4 +27,7 @@ export function setupIpcHandlers() {
 
   // Sync handlers (Google Drive)
   setupSyncHandlers();
+
+  // Asset handlers (이미지 저장)
+  setupAssetHandlers();
 }
