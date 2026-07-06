@@ -99,37 +99,16 @@ export function initializeDatabase(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
   `);
 
-  // Full-text search table for notes
+  // 미사용 FTS5 스키마 잔재 정리 (dead schema)
+  // 검색은 searchNotes()에서 LIKE로 처리하며 notes_fts는 MATCH로 전혀 쿼리되지 않는다.
+  // 과거 버전에서 생성된 기존 개발 DB에는 notes_fts 테이블·동기화 트리거가 남아 있을 수 있는데,
+  // 테이블만 사라지고 트리거가 남으면 notes INSERT/UPDATE/DELETE 시 없는 테이블을 참조해 크래시한다.
+  // 따라서 트리거를 먼저, 테이블을 나중에 drop한다(멱등).
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
-      path UNINDEXED,
-      title,
-      content,
-      content='notes',
-      content_rowid='rowid'
-    );
-  `);
-
-  // Triggers to keep FTS table in sync
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-      INSERT INTO notes_fts(rowid, path, title, content)
-      VALUES (new.rowid, new.path, new.title, new.content);
-    END;
-  `);
-
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-      DELETE FROM notes_fts WHERE rowid = old.rowid;
-    END;
-  `);
-
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-      UPDATE notes_fts
-      SET title = new.title, content = new.content
-      WHERE rowid = new.rowid;
-    END;
+    DROP TRIGGER IF EXISTS notes_ai;
+    DROP TRIGGER IF EXISTS notes_ad;
+    DROP TRIGGER IF EXISTS notes_au;
+    DROP TABLE IF EXISTS notes_fts;
   `);
 
   return db;
