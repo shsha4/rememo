@@ -23,6 +23,7 @@
   "build": {
     "appId": "com.rememo.desktop",
     "productName": "rememo",
+    "publish": null,
     "directories": {
       "output": "release",
       "buildResources": "build"

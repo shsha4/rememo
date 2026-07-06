@@ -37,11 +37,13 @@ jobs:
       - run: npm ci
 
       # 서명 인증서가 없으므로 macOS 자동 서명 시도를 끈다(package.json의 identity:null과 짝).
+      # electron-builder는 빌드만 한다(package.json build.publish:null). 실제 Release 첨부는
+      # 아래 softprops 스텝이 담당. GH_TOKEN을 여기 주면 electron-builder가 GitHub publish
+      # provider를 자동 감지 → 모노레포 repo 감지 실패 시 update info 생성에서 죽으므로 넘기지 않는다.
       - name: Build
         run: npm run ${{ matrix.build }} --workspace=apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 태그 없이 수동 실행했을 때 결과물을 내려받기 위한 아티팩트 업로드.
       - name: Upload artifacts
