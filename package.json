@@ -10,15 +10,23 @@
   "scripts": {
     "dev": "npm run dev --workspace=apps/desktop",
     "build": "npm run build --workspace=packages/core && npm run build --workspace=apps/desktop",
+    "type-check": "npm run type-check --workspace=packages/core && npm run type-check --workspace=apps/desktop",
     "lint": "eslint . --ext .ts,.tsx",
-    "type-check": "tsc --noEmit"
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.54.0",
-    "typescript": "^5.3.3"
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "^3.9.4",
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=18.0.0",

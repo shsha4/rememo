@@ -41,28 +41,63 @@ function Logo({ size = 48 }: LogoProps) {
         />
 
         {/* Center connection */}
-        <rect
-          x="35"
-          y="40"
-          width="30"
-          height="25"
-          rx="3"
-          fill="url(#logoGradient)"
-        />
+        <rect x="35" y="40" width="30" height="25" rx="3" fill="url(#logoGradient)" />
 
         {/* Neural connections */}
         <circle cx="40" cy="48" r="3" fill="url(#accentGradient)" />
         <circle cx="50" cy="45" r="3" fill="url(#accentGradient)" />
         <circle cx="60" cy="50" r="3" fill="url(#accentGradient)" />
-        <line x1="40" y1="48" x2="50" y2="45" stroke="url(#accentGradient)" strokeWidth="1.5" opacity="0.6" />
-        <line x1="50" y1="45" x2="60" y2="50" stroke="url(#accentGradient)" strokeWidth="1.5" opacity="0.6" />
+        <line
+          x1="40"
+          y1="48"
+          x2="50"
+          y2="45"
+          stroke="url(#accentGradient)"
+          strokeWidth="1.5"
+          opacity="0.6"
+        />
+        <line
+          x1="50"
+          y1="45"
+          x2="60"
+          y2="50"
+          stroke="url(#accentGradient)"
+          strokeWidth="1.5"
+          opacity="0.6"
+        />
       </g>
 
       {/* Memo lines at bottom */}
       <g className="logo-memo" opacity="0.8">
-        <line x1="30" y1="75" x2="70" y2="75" stroke="url(#logoGradient)" strokeWidth="3" strokeLinecap="round" />
-        <line x1="35" y1="82" x2="65" y2="82" stroke="url(#logoGradient)" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
-        <line x1="40" y1="89" x2="60" y2="89" stroke="url(#logoGradient)" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+        <line
+          x1="30"
+          y1="75"
+          x2="70"
+          y2="75"
+          stroke="url(#logoGradient)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <line
+          x1="35"
+          y1="82"
+          x2="65"
+          y2="82"
+          stroke="url(#logoGradient)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          opacity="0.7"
+        />
+        <line
+          x1="40"
+          y1="89"
+          x2="60"
+          y2="89"
+          stroke="url(#logoGradient)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          opacity="0.5"
+        />
       </g>
     </svg>
   );

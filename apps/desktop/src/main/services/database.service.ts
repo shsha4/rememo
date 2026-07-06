@@ -33,21 +33,26 @@ export class DatabaseService {
   }
 
   // Note operations
-  insertNote(vaultPath: string, note: {
-    id: string;
-    vaultId: string;
-    title: string;
-    path: string;
-    content: string;
-    contentHash: string;
-    createdAt: Date;
-    updatedAt: Date;
-    metadata?: Record<string, unknown>;
-  }): void {
+  insertNote(
+    vaultPath: string,
+    note: {
+      id: string;
+      vaultId: string;
+      title: string;
+      path: string;
+      content: string;
+      contentHash: string;
+      createdAt: Date;
+      updatedAt: Date;
+      metadata?: Record<string, unknown>;
+    },
+  ): void {
     const db = this.getDatabase(vaultPath);
 
     // Check if note exists by path
-    const existing = db.prepare('SELECT id, created_at FROM notes WHERE path = ?').get(note.path) as { id: string; created_at: number } | undefined;
+    const existing = db
+      .prepare('SELECT id, created_at FROM notes WHERE path = ?')
+      .get(note.path) as { id: string; created_at: number } | undefined;
 
     if (existing) {
       // Update existing note - keep original id and created_at
@@ -63,7 +68,7 @@ export class DatabaseService {
         note.contentHash,
         note.updatedAt.getTime(),
         note.metadata ? JSON.stringify(note.metadata) : null,
-        note.path
+        note.path,
       );
     } else {
       // Insert new note
@@ -81,7 +86,7 @@ export class DatabaseService {
         note.contentHash,
         note.createdAt.getTime(),
         note.updatedAt.getTime(),
-        note.metadata ? JSON.stringify(note.metadata) : null
+        note.metadata ? JSON.stringify(note.metadata) : null,
       );
     }
   }
@@ -94,7 +99,9 @@ export class DatabaseService {
     deleteNoteStmt.run(notePath);
 
     // Delete all links where this note is source or target
-    const deleteLinksStmt = db.prepare('DELETE FROM links WHERE source_note_path = ? OR target_note_path = ?');
+    const deleteLinksStmt = db.prepare(
+      'DELETE FROM links WHERE source_note_path = ? OR target_note_path = ?',
+    );
     deleteLinksStmt.run(notePath, notePath);
 
     // Delete all tags for this note
@@ -109,16 +116,19 @@ export class DatabaseService {
   }
 
   // Link operations
-  insertLinks(vaultPath: string, links: Array<{
-    sourceNotePath: string;
-    targetNotePath: string;
-    linkText: string;
-    alias?: string;
-    heading?: string;
-    linkType: string;
-    positionStart: number;
-    positionEnd: number;
-  }>): void {
+  insertLinks(
+    vaultPath: string,
+    links: Array<{
+      sourceNotePath: string;
+      targetNotePath: string;
+      linkText: string;
+      alias?: string;
+      heading?: string;
+      linkType: string;
+      positionStart: number;
+      positionEnd: number;
+    }>,
+  ): void {
     const db = this.getDatabase(vaultPath);
 
     // First, delete existing links from this source note
@@ -143,18 +153,21 @@ export class DatabaseService {
         link.heading || null,
         link.linkType,
         link.positionStart,
-        link.positionEnd
+        link.positionEnd,
       );
     }
   }
 
   // Tag operations
-  insertTags(vaultPath: string, tags: Array<{
-    notePath: string;
-    tag: string;
-    positionStart: number;
-    positionEnd: number;
-  }>): void {
+  insertTags(
+    vaultPath: string,
+    tags: Array<{
+      notePath: string;
+      tag: string;
+      positionStart: number;
+      positionEnd: number;
+    }>,
+  ): void {
     const db = this.getDatabase(vaultPath);
 
     // First, delete existing tags from this note
@@ -229,14 +242,14 @@ export class DatabaseService {
     const db = this.getDatabase(vaultPath);
     const stmt = db.prepare('SELECT DISTINCT tag FROM tags ORDER BY tag');
     const results = stmt.all() as Array<{ tag: string }>;
-    return results.map(r => r.tag);
+    return results.map((r) => r.tag);
   }
 
   getAllNoteTitles(vaultPath: string): string[] {
     const db = this.getDatabase(vaultPath);
     const stmt = db.prepare('SELECT DISTINCT title FROM notes ORDER BY LENGTH(title) DESC');
     const results = stmt.all() as Array<{ title: string }>;
-    return results.map(r => r.title);
+    return results.map((r) => r.title);
   }
 
   getTitleToPathMap(vaultPath: string): Map<string, string> {
@@ -244,12 +257,12 @@ export class DatabaseService {
     const stmt = db.prepare('SELECT title, path FROM notes');
     const results = stmt.all() as Array<{ title: string; path: string }>;
     const map = new Map<string, string>();
-    results.forEach(r => map.set(r.title, r.path));
+    results.forEach((r) => map.set(r.title, r.path));
     return map;
   }
 
   // Graph data
-  getGraphData(vaultPath: string): { nodes: any[], edges: any[] } {
+  getGraphData(vaultPath: string): { nodes: any[]; edges: any[] } {
     const db = this.getDatabase(vaultPath);
 
     const nodesStmt = db.prepare('SELECT DISTINCT path, title FROM notes');

@@ -1,0 +1,13 @@
+# 모든 텍스트 파일의 줄바꿈을 LF로 통일한다.
+# (Windows의 core.autocrlf=true 환경에서 Prettier endOfLine:lf 와 충돌해
+#  npm run format:check 가 전 파일에서 깨지는 것을 방지)
+* text=auto eol=lf
+
+# 바이너리 파일은 줄바꿈/텍스트 변환에서 제외한다.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.node binary

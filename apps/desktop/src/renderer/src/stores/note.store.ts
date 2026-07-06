@@ -24,5 +24,6 @@ export const useNoteStore = create<NoteState>((set) => ({
   setCurrentNote: (note) => set({ currentNote: note }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
-  triggerGraphRefresh: () => set((state) => ({ graphRefreshTrigger: state.graphRefreshTrigger + 1 })),
+  triggerGraphRefresh: () =>
+    set((state) => ({ graphRefreshTrigger: state.graphRefreshTrigger + 1 })),
 }));

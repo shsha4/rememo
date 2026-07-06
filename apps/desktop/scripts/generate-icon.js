@@ -17,10 +17,7 @@ async function generateIcons() {
   for (const size of sizes) {
     const outputPath = path.join(buildDir, `icon-${size}.png`);
 
-    await sharp(svgBuffer)
-      .resize(size, size)
-      .png()
-      .toFile(outputPath);
+    await sharp(svgBuffer).resize(size, size).png().toFile(outputPath);
 
     console.log(`✓ Generated ${size}x${size} icon`);
   }

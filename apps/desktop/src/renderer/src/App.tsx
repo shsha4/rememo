@@ -27,12 +27,12 @@ function App() {
 
   const handlePageChange = (page: Page) => {
     setCurrentPage(page);
-    setPageKey(prev => prev + 1);
+    setPageKey((prev) => prev + 1);
   };
 
   const handleNoteDeleted = () => {
-    setAppKey(prev => prev + 1);
-    setPageKey(prev => prev + 1);
+    setAppKey((prev) => prev + 1);
+    setPageKey((prev) => prev + 1);
   };
 
   const renderNavBar = () => {
@@ -77,14 +77,20 @@ function App() {
         return (
           <>
             {renderNavBar()}
-            <GraphPage key={`graph-${pageKey}`} onNavigateToEditor={() => handlePageChange('editor')} />
+            <GraphPage
+              key={`graph-${pageKey}`}
+              onNavigateToEditor={() => handlePageChange('editor')}
+            />
           </>
         );
       case 'search':
         return (
           <>
             {renderNavBar()}
-            <SearchPage key={`search-${pageKey}`} onNavigateToEditor={() => handlePageChange('editor')} />
+            <SearchPage
+              key={`search-${pageKey}`}
+              onNavigateToEditor={() => handlePageChange('editor')}
+            />
           </>
         );
       default:
@@ -92,11 +98,7 @@ function App() {
     }
   };
 
-  return (
-    <div className="app">
-      {renderPage()}
-    </div>
-  );
+  return <div className="app">{renderPage()}</div>;
 }
 
 export default App;

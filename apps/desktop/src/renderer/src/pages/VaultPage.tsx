@@ -148,7 +148,11 @@ function VaultPage() {
         <div className="vault-actions">
           {!isCreating ? (
             <>
-              <button className="btn btn-primary" onClick={() => setIsCreating(true)} disabled={loading}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setIsCreating(true)}
+                disabled={loading}
+              >
                 새 노트 공간 만들기
               </button>
               <button className="btn btn-secondary" onClick={handleOpenVault} disabled={loading}>

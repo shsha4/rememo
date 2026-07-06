@@ -16,7 +16,7 @@ function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps) {
     (val: string) => {
       onChange(val);
     },
-    [onChange]
+    [onChange],
   );
 
   const handleKeyDown = useCallback(
@@ -26,7 +26,7 @@ function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps) {
         onSave?.();
       }
     },
-    [onSave]
+    [onSave],
   );
 
   return (

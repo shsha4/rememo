@@ -67,12 +67,8 @@ function Backlinks({ notePath }: BacklinksProps) {
               className="backlink-item"
               onClick={() => handleBacklinkClick(backlink.backlink_path)}
             >
-              <div className="backlink-title">
-                {backlink.alias || backlink.link_text}
-              </div>
-              {backlink.heading && (
-                <div className="backlink-heading">#{backlink.heading}</div>
-              )}
+              <div className="backlink-title">{backlink.alias || backlink.link_text}</div>
+              {backlink.heading && <div className="backlink-heading">#{backlink.heading}</div>}
               <div className="backlink-path">{backlink.backlink_path}</div>
             </div>
           ))}

@@ -162,11 +162,7 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
           <input
             type="text"
             className="search-input"
-            placeholder={
-              searchMode === 'fulltext'
-                ? '메모 검색...'
-                : '태그로 검색...'
-            }
+            placeholder={searchMode === 'fulltext' ? '메모 검색...' : '태그로 검색...'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -182,11 +178,7 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
           <h3>모든 태그 ({tags.length})</h3>
           <div className="tags-list">
             {tags.map((tag, index) => (
-              <button
-                key={index}
-                className="tag-button"
-                onClick={() => handleTagClick(tag)}
-              >
+              <button key={index} className="tag-button" onClick={() => handleTagClick(tag)}>
                 #{tag}
               </button>
             ))}
@@ -202,17 +194,11 @@ function SearchPage({ onNavigateToEditor }: SearchPageProps) {
         ) : (
           <div className="results-list">
             {results.map((result, index) => (
-              <div
-                key={index}
-                className="result-item"
-                onClick={() => handleResultClick(result)}
-              >
+              <div key={index} className="result-item" onClick={() => handleResultClick(result)}>
                 <div className="result-title">{result.title}</div>
                 <div className="result-path">{result.path}</div>
                 {result.content && (
-                  <div className="result-preview">
-                    {result.content.substring(0, 200)}...
-                  </div>
+                  <div className="result-preview">{result.content.substring(0, 200)}...</div>
                 )}
               </div>
             ))}

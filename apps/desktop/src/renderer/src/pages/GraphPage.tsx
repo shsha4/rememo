@@ -36,7 +36,7 @@ const calculateNodeDepths = (nodes: Node[], edges: Edge[]): Map<string, number> 
   const adjacency = new Map<string, string[]>();
 
   // Build adjacency list
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     if (!adjacency.has(edge.source)) {
       adjacency.set(edge.source, []);
     }
@@ -45,14 +45,17 @@ const calculateNodeDepths = (nodes: Node[], edges: Edge[]): Map<string, number> 
 
   // Find root nodes (nodes with no incoming edges)
   const incomingCount = new Map<string, number>();
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     incomingCount.set(edge.target, (incomingCount.get(edge.target) || 0) + 1);
   });
 
-  const roots = nodes.filter(node => !incomingCount.has(node.id));
+  const roots = nodes.filter((node) => !incomingCount.has(node.id));
 
   // BFS to assign depths
-  const queue: Array<{ id: string; depth: number }> = roots.map(node => ({ id: node.id, depth: 0 }));
+  const queue: Array<{ id: string; depth: number }> = roots.map((node) => ({
+    id: node.id,
+    depth: 0,
+  }));
 
   while (queue.length > 0) {
     const { id, depth } = queue.shift()!;
@@ -61,14 +64,14 @@ const calculateNodeDepths = (nodes: Node[], edges: Edge[]): Map<string, number> 
       depths.set(id, depth);
 
       const children = adjacency.get(id) || [];
-      children.forEach(childId => {
+      children.forEach((childId) => {
         queue.push({ id: childId, depth: depth + 1 });
       });
     }
   }
 
   // Assign depth 0 to any remaining nodes
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     if (!depths.has(node.id)) {
       depths.set(node.id, 0);
     }
@@ -85,8 +88,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   // Configure dagre layout
   dagreGraph.setGraph({
     rankdir: 'BT', // Bottom to Top (root nodes at top)
-    ranksep: 100,   // Vertical spacing between ranks
-    nodesep: 80,    // Horizontal spacing between nodes
+    ranksep: 100, // Vertical spacing between ranks
+    nodesep: 80, // Horizontal spacing between nodes
     edgesep: 50,
   });
 
@@ -183,14 +186,14 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       const depths = calculateNodeDepths(flowNodes, flowEdges);
 
       // Apply depth to node data
-      flowNodes.forEach(node => {
+      flowNodes.forEach((node) => {
         node.data.depth = depths.get(node.id) || 0;
       });
 
       // Apply hierarchical layout using dagre
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
         flowNodes,
-        flowEdges
+        flowEdges,
       );
 
       setNodes(layoutedNodes);
@@ -254,9 +257,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     }
 
     const query = searchQuery.toLowerCase();
-    return displayNodes.filter((node) =>
-      node.data.label.toLowerCase().includes(query)
-    );
+    return displayNodes.filter((node) => node.data.label.toLowerCase().includes(query));
   }, [displayNodes, searchQuery]);
 
   const filteredEdges = useMemo(() => {
@@ -266,26 +267,29 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
 
     const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
     return displayEdges.filter(
-      (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+      (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target),
     );
   }, [displayEdges, filteredNodes, searchQuery]);
 
-  const onNodeClick = useCallback(async (_event: any, node: Node) => {
-    if (!currentVault) return;
+  const onNodeClick = useCallback(
+    async (_event: any, node: Node) => {
+      if (!currentVault) return;
 
-    // Toggle selection
-    setSelectedNode((prev) => (prev === node.id ? null : node.id));
+      // Toggle selection
+      setSelectedNode((prev) => (prev === node.id ? null : node.id));
 
-    try {
-      // node.id is the note path
-      const note = await electronAPI.note.read(node.id, currentVault.id);
-      setCurrentNote(note);
-      onNavigateToEditor();
-    } catch (error) {
-      console.error('Failed to load note:', error);
-      alert('Failed to load note');
-    }
-  }, [currentVault, setCurrentNote, onNavigateToEditor]);
+      try {
+        // node.id is the note path
+        const note = await electronAPI.note.read(node.id, currentVault.id);
+        setCurrentNote(note);
+        onNavigateToEditor();
+      } catch (error) {
+        console.error('Failed to load note:', error);
+        alert('Failed to load note');
+      }
+    },
+    [currentVault, setCurrentNote, onNavigateToEditor],
+  );
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, node) => {
     setSelectedNode(node.id);
@@ -331,7 +335,12 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
             minZoom={0.1}
             maxZoom={4}
           >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--border-primary)" />
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={16}
+              size={1}
+              color="var(--border-primary)"
+            />
             <Controls />
             <MiniMap
               nodeColor={(node) => {

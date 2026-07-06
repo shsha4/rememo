@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { vaultService } from '../services/vault.service';
 import { fileService } from '../services/file.service';
-import type { VaultConfig } from '../domain/vault';
+import type { VaultConfig } from '@memograph/core';
 
 export function setupVaultHandlers() {
   ipcMain.handle('vault:select-folder', async () => {
@@ -20,7 +20,10 @@ export function setupVaultHandlers() {
     return vaultService.isValidVault(vaultPath);
   });
 
-  ipcMain.handle('vault:update-config', async (_event, vaultPath: string, config: Partial<VaultConfig>) => {
-    return vaultService.updateVaultConfig(vaultPath, config);
-  });
+  ipcMain.handle(
+    'vault:update-config',
+    async (_event, vaultPath: string, config: Partial<VaultConfig>) => {
+      return vaultService.updateVaultConfig(vaultPath, config);
+    },
+  );
 }

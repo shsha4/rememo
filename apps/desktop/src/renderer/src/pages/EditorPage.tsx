@@ -42,7 +42,7 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
         currentNote.path,
         currentVault.id,
         { content },
-        currentVault.path
+        currentVault.path,
       );
       setCurrentNote(updatedNote);
       // Trigger graph refresh to update entity mentions
@@ -58,13 +58,15 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
   const handleDelete = async () => {
     if (!currentNote || !currentVault) return;
 
-    const confirmed = confirm(`"${currentNote.title}" 메모를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+    const confirmed = confirm(
+      `"${currentNote.title}" 메모를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+    );
     if (!confirmed) return;
 
     try {
       await electronAPI.note.delete(currentNote.path, currentVault.path);
       setCurrentNote(null);
-      setSidebarKey(prev => prev + 1); // Force Sidebar to reload
+      setSidebarKey((prev) => prev + 1); // Force Sidebar to reload
       onNoteDeleted?.();
     } catch (error: any) {
       console.error('Failed to delete note:', error);
@@ -75,7 +77,9 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
   const renderEditor = () => {
     switch (viewMode) {
       case 'edit':
-        return <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />;
+        return (
+          <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />
+        );
       case 'preview':
         return <MarkdownPreview content={content} />;
       case 'split':
@@ -127,25 +131,15 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
                       미리보기
                     </button>
                   </div>
-                  <button
-                    className="btn-delete"
-                    onClick={handleDelete}
-                    title="메모 삭제"
-                  >
+                  <button className="btn-delete" onClick={handleDelete} title="메모 삭제">
                     삭제
                   </button>
-                  <button
-                    className="btn-save"
-                    onClick={handleSave}
-                    disabled={isSaving}
-                  >
+                  <button className="btn-save" onClick={handleSave} disabled={isSaving}>
                     {isSaving ? '저장 중...' : '저장 (Ctrl+S)'}
                   </button>
                 </div>
               </div>
-              <div className="editor-content">
-                {renderEditor()}
-              </div>
+              <div className="editor-content">{renderEditor()}</div>
             </>
           ) : (
             <div className="editor-empty">
@@ -176,12 +170,10 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
               currentNote ? (
                 <div className="note-metadata">
                   <p>
-                    <strong>생성:</strong>{' '}
-                    {new Date(currentNote.createdAt).toLocaleString('ko-KR')}
+                    <strong>생성:</strong> {new Date(currentNote.createdAt).toLocaleString('ko-KR')}
                   </p>
                   <p>
-                    <strong>수정:</strong>{' '}
-                    {new Date(currentNote.updatedAt).toLocaleString('ko-KR')}
+                    <strong>수정:</strong> {new Date(currentNote.updatedAt).toLocaleString('ko-KR')}
                   </p>
                   <p>
                     <strong>경로:</strong> {currentNote.path}
@@ -190,12 +182,10 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
               ) : (
                 <p className="empty-message">메모가 선택되지 않았습니다</p>
               )
+            ) : currentNote ? (
+              <Backlinks notePath={currentNote.path} />
             ) : (
-              currentNote ? (
-                <Backlinks notePath={currentNote.path} />
-              ) : (
-                <p className="empty-message">메모가 선택되지 않았습니다</p>
-              )
+              <p className="empty-message">메모가 선택되지 않았습니다</p>
             )}
           </div>
         </aside>
