@@ -6,110 +6,119 @@
   --depth-4: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
 }
 
+/* 원형 노드: 크기(width/height)는 degree에 비례해 인라인 스타일로 주입된다. */
 .custom-graph-node {
-  min-width: 150px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   background: var(--node-color);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease,
+    filter 0.3s ease;
   cursor: pointer;
   position: relative;
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .custom-graph-node:hover {
-  transform: scale(1.05) translateY(-2px);
   box-shadow:
     0 8px 30px rgba(0, 0, 0, 0.25),
-    0 0 0 2px rgba(255, 255, 255, 0.2);
-}
-
-.node-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-}
-
-.node-depth-indicator {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+    0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
 .node-label {
-  font-size: 14px;
+  color: #ffffff;
   font-weight: 600;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  flex: 1;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  line-height: 1.15;
+  /* 긴 제목은 최대 3줄까지 보여주고 말줄임 처리 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   word-break: break-word;
+  pointer-events: none;
 }
 
+/* 테두리 연결 핸들: 평소엔 숨어 있다가 노드 hover 시 또렷한 점으로 드러난다.
+   몸통은 드래그로 이동, 이 점을 잡고 드래그하면 연결이 시작된다. */
 .node-handle {
-  width: 10px;
-  height: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid var(--bg-primary);
-  transition: all 0.2s;
+  width: 13px;
+  height: 13px;
+  background: #ffffff;
+  border: 2px solid var(--accent-primary);
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.custom-graph-node:hover .node-handle {
+  opacity: 1;
 }
 
 .node-handle:hover {
-  width: 14px;
-  height: 14px;
   background: var(--accent-primary);
+  transform: scale(1.35);
 }
 
 /* Highlight states */
 .custom-graph-node.selected {
-  transform: scale(1.15);
   box-shadow:
-    0 0 0 3px rgba(102, 126, 234, 0.6),
+    0 0 0 4px rgba(102, 126, 234, 0.7),
     0 8px 30px rgba(0, 0, 0, 0.3);
   z-index: 1000 !important;
 }
 
 .custom-graph-node.highlighted {
-  transform: scale(1.08);
   box-shadow:
-    0 0 0 2px rgba(102, 126, 234, 0.4),
+    0 0 0 3px rgba(102, 126, 234, 0.5),
     0 6px 25px rgba(0, 0, 0, 0.25);
 }
 
 .custom-graph-node.dimmed {
-  opacity: 0.25;
+  opacity: 0.2;
   filter: grayscale(0.7);
 }
 
-/* Animated pulse for root nodes */
-.custom-graph-node[style*='--node-depth: 0']::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 14px;
-  background: inherit;
-  opacity: 0.3;
-  animation: pulse 2s ease-in-out infinite;
+/* 검색어에 직접 매칭된 노드: hover/선택(파란 링)과 구분되는 앰버 링으로 강조.
+   dimmed 규칙보다 뒤에 선언해 매칭 노드는 항상 또렷하게 보이도록 우선한다. */
+.custom-graph-node.search-match {
+  opacity: 1;
+  filter: none;
+  box-shadow:
+    0 0 0 4px rgba(250, 204, 21, 0.9),
+    0 8px 30px rgba(0, 0, 0, 0.3);
+  z-index: 900 !important;
 }
 
-@keyframes pulse {
+/* 연결 드래그 중, 놓을 수 있는 대상 노드에 표시하는 초록 점선 링(펄스). */
+.custom-graph-node.connect-target {
+  opacity: 1;
+  filter: none;
+  box-shadow:
+    0 0 0 3px rgba(52, 211, 153, 0.95),
+    0 0 22px 4px rgba(52, 211, 153, 0.55);
+  animation: connect-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes connect-pulse {
   0%,
   100% {
-    transform: scale(1);
-    opacity: 0.3;
+    box-shadow:
+      0 0 0 3px rgba(52, 211, 153, 0.95),
+      0 0 22px 4px rgba(52, 211, 153, 0.35);
   }
   50% {
-    transform: scale(1.05);
-    opacity: 0.1;
+    box-shadow:
+      0 0 0 5px rgba(52, 211, 153, 1),
+      0 0 30px 8px rgba(52, 211, 153, 0.65);
   }
 }

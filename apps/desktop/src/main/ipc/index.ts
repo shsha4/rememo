@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { ipcHandler } from './ipc-result';
 import { setupVaultHandlers } from './vault.handlers';
 import { setupNoteHandlers } from './note.handlers';
+import { setupLinkHandlers } from './link.handlers';
 import { setupIndexerHandlers } from './indexer.handlers';
 import { setupSyncHandlers } from './sync.handlers';
 import { setupAssetHandlers } from './asset.handlers';
@@ -29,6 +30,9 @@ export function setupIpcHandlers() {
 
   // Note handlers
   setupNoteHandlers();
+
+  // Link handlers (그래프에서 노드 간 관계 추가/삭제)
+  setupLinkHandlers();
 
   // Indexer handlers
   setupIndexerHandlers();

@@ -361,12 +361,23 @@ export class DatabaseService {
     const nodesStmt = db.prepare('SELECT DISTINCT path, title FROM notes');
     const nodes = nodesStmt.all();
 
-    // Only include edges where both source and target notes exist
+    // Only include edges where both source and target notes exist.
+    // link_type을 집계해 그래프에서 편집 가능 여부를 구분한다:
+    // 같은 (source,target) 쌍에 wiki_link가 하나라도 있으면 'wiki_link'(명시적, 삭제 가능),
+    // 없고 entity_mention만 있으면 'entity_mention'(자동 감지, 그래프에서 삭제 불가).
     const edgesStmt = db.prepare(`
-      SELECT DISTINCT l.source_note_path as source, l.target_note_path as target
+      SELECT
+        l.source_note_path as source,
+        l.target_note_path as target,
+        CASE
+          WHEN SUM(CASE WHEN l.link_type = 'wiki_link' THEN 1 ELSE 0 END) > 0
+          THEN 'wiki_link'
+          ELSE 'entity_mention'
+        END as linkType
       FROM links l
       INNER JOIN notes n1 ON l.source_note_path = n1.path
       INNER JOIN notes n2 ON l.target_note_path = n2.path
+      GROUP BY l.source_note_path, l.target_note_path
     `);
     const edges = edgesStmt.all();
 
