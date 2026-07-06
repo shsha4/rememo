@@ -1,5 +1,5 @@
-import type { Vault, VaultConfig } from '../domain/vault';
-import { VaultNotFoundError, VaultAlreadyExistsError } from '../domain/vault';
+import type { Vault, VaultConfig } from '@memograph/core';
+import { VaultNotFoundError, VaultAlreadyExistsError } from '@memograph/core';
 import { fileService } from './file.service';
 import path from 'path';
 import crypto from 'crypto';

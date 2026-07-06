@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { noteService } from '../services/note.service';
 import { indexerService } from '../services/indexer.service';
-import type { NoteCreateInput, NoteUpdateInput } from '../domain/note';
+import type { NoteCreateInput, NoteUpdateInput } from '@memograph/core';
 
 export function setupNoteHandlers() {
   ipcMain.handle('note:create', async (_event, input: NoteCreateInput, vaultPath: string) => {
@@ -23,20 +23,29 @@ export function setupNoteHandlers() {
     return noteService.readNote(notePath, vaultId);
   });
 
-  ipcMain.handle('note:update', async (_event, notePath: string, vaultId: string, update: NoteUpdateInput, vaultPath: string) => {
-    const note = await noteService.updateNote(notePath, vaultId, update);
+  ipcMain.handle(
+    'note:update',
+    async (
+      _event,
+      notePath: string,
+      vaultId: string,
+      update: NoteUpdateInput,
+      vaultPath: string,
+    ) => {
+      const note = await noteService.updateNote(notePath, vaultId, update);
 
-    // Explicitly trigger re-indexing for the updated note
-    try {
-      console.log('[note:update] Triggering re-index for updated note:', notePath);
-      await indexerService.reindexNote(notePath, vaultPath, vaultId);
-      await indexerService.reindexAllNotesLinks(vaultPath, vaultId);
-    } catch (error) {
-      console.error('[note:update] Failed to trigger re-index:', error);
-    }
+      // Explicitly trigger re-indexing for the updated note
+      try {
+        console.log('[note:update] Triggering re-index for updated note:', notePath);
+        await indexerService.reindexNote(notePath, vaultPath, vaultId);
+        await indexerService.reindexAllNotesLinks(vaultPath, vaultId);
+      } catch (error) {
+        console.error('[note:update] Failed to trigger re-index:', error);
+      }
 
-    return note;
-  });
+      return note;
+    },
+  );
 
   ipcMain.handle('note:delete', async (_event, notePath: string, vaultPath: string) => {
     await noteService.deleteNote(notePath);
@@ -54,22 +63,30 @@ export function setupNoteHandlers() {
     return noteService.listNotes(vaultPath);
   });
 
-  ipcMain.handle('note:rename', async (_event, oldPath: string, newPath: string, vaultPath: string, vaultId: string) => {
-    await noteService.renameNote(oldPath, newPath);
+  ipcMain.handle(
+    'note:rename',
+    async (_event, oldPath: string, newPath: string, vaultPath: string, vaultId: string) => {
+      await noteService.renameNote(oldPath, newPath);
 
-    // Explicitly trigger index update for the renamed note
-    try {
-      console.log('[note:rename] Triggering index update for renamed note:', oldPath, '->', newPath);
-      // Delete old note from index
-      await indexerService.deleteNoteFromIndex(oldPath, vaultPath);
-      // Index the new note
-      await indexerService.indexNote(newPath, vaultPath, vaultId);
-      // Re-index all links since links might reference the renamed note
-      await indexerService.reindexAllNotesLinks(vaultPath, vaultId);
-    } catch (error) {
-      console.error('[note:rename] Failed to trigger index update:', error);
-    }
-  });
+      // Explicitly trigger index update for the renamed note
+      try {
+        console.log(
+          '[note:rename] Triggering index update for renamed note:',
+          oldPath,
+          '->',
+          newPath,
+        );
+        // Delete old note from index
+        await indexerService.deleteNoteFromIndex(oldPath, vaultPath);
+        // Index the new note
+        await indexerService.indexNote(newPath, vaultPath, vaultId);
+        // Re-index all links since links might reference the renamed note
+        await indexerService.reindexAllNotesLinks(vaultPath, vaultId);
+      } catch (error) {
+        console.error('[note:rename] Failed to trigger index update:', error);
+      }
+    },
+  );
 
   ipcMain.handle('note:get-title', async (_event, notePath: string) => {
     return noteService.getNoteTitleFromPath(notePath);

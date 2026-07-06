@@ -11,6 +11,11 @@ export default defineConfig({
       {
         entry: 'src/main/index.ts',
         vite: {
+          resolve: {
+            alias: {
+              '@memograph/core': path.resolve(__dirname, '../../packages/core/src'),
+            },
+          },
           build: {
             outDir: 'dist/main',
             lib: {
@@ -32,6 +37,11 @@ export default defineConfig({
           options.reload();
         },
         vite: {
+          resolve: {
+            alias: {
+              '@memograph/core': path.resolve(__dirname, '../../packages/core/src'),
+            },
+          },
           build: {
             outDir: 'dist/preload',
             lib: {
@@ -49,7 +59,7 @@ export default defineConfig({
       nodeIntegration: false,
       resolve: {
         'better-sqlite3': { type: 'cjs' },
-        'chokidar': { type: 'esm' },
+        chokidar: { type: 'esm' },
       },
     }),
   ],

@@ -1,6 +1,6 @@
 import { databaseService } from './database.service';
 import { noteService } from './note.service';
-import { MarkdownParser } from '../parser/markdown-parser';
+import { MarkdownParser } from '@memograph/core';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
 
@@ -48,13 +48,17 @@ export class IndexerService {
     console.log(`Indexing complete for vault: ${vaultPath}`);
   }
 
-  private async indexLinksAndTags(notePath: string, vaultPath: string, vaultId: string): Promise<void> {
+  private async indexLinksAndTags(
+    notePath: string,
+    vaultPath: string,
+    vaultId: string,
+  ): Promise<void> {
     // Read the note
     const note = await noteService.readNote(notePath, vaultId);
 
     // Parse and index explicit WikiLinks
     const links = this.parser.parseWikiLinks(note.content);
-    const linkRecords = links.map(link => ({
+    const linkRecords = links.map((link) => ({
       sourceNotePath: notePath,
       targetNotePath: this.resolveLinkPath(link.target, notePath, vaultPath),
       linkText: link.target,
@@ -69,8 +73,11 @@ export class IndexerService {
     const allNoteTitles = databaseService.getAllNoteTitles(vaultPath);
     console.log(`[${notePath}] All note titles:`, allNoteTitles);
     const entityMentions = this.parser.parseEntityMentions(note.content, allNoteTitles, note.title);
-    console.log(`[${notePath}] Found ${entityMentions.length} entity mentions:`, entityMentions.map(m => m.target));
-    const entityMentionRecords = entityMentions.map(mention => ({
+    console.log(
+      `[${notePath}] Found ${entityMentions.length} entity mentions:`,
+      entityMentions.map((m) => m.target),
+    );
+    const entityMentionRecords = entityMentions.map((mention) => ({
       sourceNotePath: notePath,
       targetNotePath: this.resolveLinkPath(mention.target, notePath, vaultPath),
       linkText: mention.target,
@@ -90,7 +97,7 @@ export class IndexerService {
 
     // Parse and index tags
     const tags = this.parser.parseTags(note.content);
-    const tagRecords = tags.map(tag => ({
+    const tagRecords = tags.map((tag) => ({
       notePath,
       tag: tag.tag,
       positionStart: tag.position?.start || 0,
@@ -253,7 +260,7 @@ export class IndexerService {
     return databaseService.getAllTags(vaultPath);
   }
 
-  getGraphData(vaultPath: string): { nodes: any[], edges: any[] } {
+  getGraphData(vaultPath: string): { nodes: any[]; edges: any[] } {
     return databaseService.getGraphData(vaultPath);
   }
 }
