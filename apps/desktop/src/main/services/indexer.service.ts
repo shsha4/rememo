@@ -3,7 +3,6 @@ import { noteService } from './note.service';
 import { MarkdownParser } from '../parser/markdown-parser';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
-import { fileService } from './file.service';
 
 export class IndexerService {
   private watchers: Map<string, FSWatcher> = new Map();

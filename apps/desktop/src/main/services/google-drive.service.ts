@@ -1,6 +1,3 @@
-import path from 'path';
-import { fileService } from './file.service';
-
 /**
  * Google Drive Backup/Restore Service
  *
@@ -17,7 +14,6 @@ import { fileService } from './file.service';
 
 export class GoogleDriveService {
   private authenticated = false;
-  private accessToken: string | null = null;
 
   /**
    * Initialize OAuth2 authentication
@@ -112,7 +108,6 @@ export class GoogleDriveService {
    */
   async signOut(): Promise<void> {
     this.authenticated = false;
-    this.accessToken = null;
     console.log('Signed out from Google Drive');
   }
 }

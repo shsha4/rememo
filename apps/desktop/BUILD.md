@@ -1,5 +1,92 @@
 # rememo 빌드 가이드
 
+## macOS 배포 패키지 만들기
+
+macOS(Apple Silicon)용 DMG를 만드는 방법입니다. **네이티브 모듈(better-sqlite3)이 있어 macOS 패키지는 반드시 macOS에서 빌드해야 합니다.**
+
+### 사전 준비
+
+```bash
+# 저장소 루트에서
+npm install
+```
+
+### 개발 모드로 실행
+
+```bash
+# 저장소 루트에서 — Vite + Electron 앱이 함께 뜹니다
+npm run dev
+```
+
+> `npm run electron:dev`는 Electron을 이중으로 실행해 충돌할 수 있으니 개발 시에는 `npm run dev`를 사용하세요.
+
+### DMG 빌드
+
+```bash
+cd apps/desktop
+
+# Apple Silicon(arm64)용 DMG (서명 없음)
+npm run build:mac
+
+# Intel(x64)용
+npm run build:mac-x64
+
+# Universal (arm64 + x64 겸용)
+npm run build:mac-universal
+```
+
+빌드 결과는 `apps/desktop/release/`에 생성됩니다:
+
+- `rememo-0.1.0-mac-arm64.dmg` — Apple Silicon용 설치 이미지 (약 126MB)
+- `mac-arm64/rememo.app` — 압축 해제된 앱 번들
+
+### 배포 및 실행 (서명 없음)
+
+코드 서명을 하지 않았으므로 앱을 **처음 실행할 때** Gatekeeper 경고가 뜹니다. 받는 사람은:
+
+1. `rememo.app`을 `응용 프로그램` 폴더로 드래그
+2. 앱을 **우클릭 → 열기** → 대화상자에서 다시 **열기** (최초 1회만)
+   - 또는 `설정 → 개인정보 보호 및 보안`에서 "확인 없이 열기" 허용
+3. 이후에는 일반 실행 가능
+
+> 정식 배포(경고 없이 실행)를 원하면 Apple Developer 계정($99/년)으로 코드 서명 + 공증(notarization)이 필요합니다.
+
+### 기술 참고 (버전 요구사항)
+
+- **Electron 43** — macOS Sequoia(15.x)에서 실행하려면 필수. Electron 28은 Sequoia에서 앱 시작 즉시 SIGTRAP 크래시합니다.
+- **better-sqlite3 12** — Electron 43의 V8 API와 호환되는 버전. 11.x는 컴파일되지 않습니다.
+- 네이티브 모듈은 Electron 버전에 맞춰 리빌드해야 합니다:
+  ```bash
+  # 저장소 루트에서
+  ./node_modules/.bin/electron-rebuild -f -w better-sqlite3
+  ```
+
+### 문제 해결 (macOS)
+
+**컴파일 시 `'climits' file not found` 등 C++ 표준 헤더 오류**
+
+Xcode Command Line Tools의 libc++ 헤더가 손상된 경우입니다. 근본 해결은 CLT 재설치:
+
+```bash
+sudo rm -rf /Library/Developer/CommandLineTools
+sudo xcode-select --install
+```
+
+재설치 후에도 툴체인 헤더가 불완전하면, 빌드 명령 앞에 정상 SDK의 헤더 경로를 주입해 우회할 수 있습니다:
+
+```bash
+export CPLUS_INCLUDE_PATH="$(xcrun --show-sdk-path)/usr/include/c++/v1"
+npm install
+./node_modules/.bin/electron-rebuild -f -w better-sqlite3
+npm run build:mac
+```
+
+**앱 실행 시 `NODE_MODULE_VERSION` 불일치 오류**
+
+better-sqlite3가 Electron ABI가 아닌 시스템 Node ABI로 빌드된 경우입니다. 위의 `electron-rebuild`를 실행하세요.
+
+---
+
 ## Windows 배포 패키지 만들기
 
 친구들에게 배포할 수 있는 Windows 패키지를 만드는 방법입니다.

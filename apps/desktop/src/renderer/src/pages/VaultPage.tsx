@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import Logo from '../components/Logo';

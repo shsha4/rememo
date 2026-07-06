@@ -48,14 +48,6 @@ function Backlinks({ notePath }: BacklinksProps) {
     console.log('Navigate to:', backlinkPath);
   };
 
-  const getBacklinkTitle = async (path: string): Promise<string> => {
-    try {
-      return await electronAPI.note.getTitle(path);
-    } catch {
-      return path;
-    }
-  };
-
   return (
     <div className="backlinks-panel">
       <div className="backlinks-header">
