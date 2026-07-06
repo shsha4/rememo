@@ -11,6 +11,8 @@ export interface Vault {
 }
 
 export interface VaultConfig {
+  /** vault.json에 영속되는 vault 고유 id (core의 VaultConfig와 동일). */
+  id: string;
   version: string;
   name: string;
   defaultNoteLocation?: string;
