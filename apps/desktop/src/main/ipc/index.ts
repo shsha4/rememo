@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { ipcHandler } from './ipc-result';
 import { setupVaultHandlers } from './vault.handlers';
 import { setupNoteHandlers } from './note.handlers';
 import { setupIndexerHandlers } from './indexer.handlers';
@@ -8,14 +9,20 @@ import { setupTodoHandlers } from './todo.handlers';
 
 export function setupIpcHandlers() {
   // Ping-Pong test handler
-  ipcMain.handle('ping', async () => {
-    return 'pong';
-  });
+  ipcMain.handle(
+    'ping',
+    ipcHandler(async () => {
+      return 'pong';
+    }),
+  );
 
   // System handlers
-  ipcMain.handle('system:get-platform', async () => {
-    return process.platform;
-  });
+  ipcMain.handle(
+    'system:get-platform',
+    ipcHandler(async () => {
+      return process.platform;
+    }),
+  );
 
   // Vault handlers
   setupVaultHandlers();

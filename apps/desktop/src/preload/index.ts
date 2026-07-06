@@ -31,6 +31,19 @@ import type {
   TodoSetDueRequest,
   TodoUpdateSettingsRequest,
 } from '../shared/ipc';
+import type { IpcResult } from '../shared/ipc';
+
+// 와이어에서 IpcResult<T> 봉투를 벗겨 성공 시 data(T)를 반환하고,
+// 실패 시 error.code를 name으로 갖는 Error를 throw한다.
+async function invoke<T>(channel: string, req?: unknown): Promise<T> {
+  const res = (await ipcRenderer.invoke(channel, req)) as IpcResult<T>;
+  if (!res.success) {
+    const err = new Error(res.error.message);
+    err.name = res.error.code;
+    throw err;
+  }
+  return res.data;
+}
 
 export interface TodoItem {
   notePath: string;
@@ -95,54 +108,56 @@ export interface ElectronAPI {
 }
 
 const electronAPI: ElectronAPI = {
-  ping: () => ipcRenderer.invoke('ping'),
+  ping: () => invoke<string>('ping'),
   system: {
-    getPlatform: () => ipcRenderer.invoke('system:get-platform'),
+    getPlatform: () => invoke<string>('system:get-platform'),
   },
   vault: {
-    selectFolder: () => ipcRenderer.invoke('vault:select-folder'),
-    create: (req) => ipcRenderer.invoke('vault:create', req),
-    open: (req) => ipcRenderer.invoke('vault:open', req),
-    isValid: (req) => ipcRenderer.invoke('vault:is-valid', req),
-    updateConfig: (req) => ipcRenderer.invoke('vault:update-config', req),
+    selectFolder: () => invoke<string | null>('vault:select-folder'),
+    create: (req) => invoke<Vault>('vault:create', req),
+    open: (req) => invoke<Vault>('vault:open', req),
+    isValid: (req) => invoke<boolean>('vault:is-valid', req),
+    updateConfig: (req) => invoke<void>('vault:update-config', req),
   },
   note: {
-    create: (req) => ipcRenderer.invoke('note:create', req),
-    read: (req) => ipcRenderer.invoke('note:read', req),
-    update: (req) => ipcRenderer.invoke('note:update', req),
-    delete: (req) => ipcRenderer.invoke('note:delete', req),
-    list: (req) => ipcRenderer.invoke('note:list', req),
-    rename: (req) => ipcRenderer.invoke('note:rename', req),
-    getTitle: (req) => ipcRenderer.invoke('note:get-title', req),
-    getRelativePath: (req) => ipcRenderer.invoke('note:get-relative-path', req),
+    create: (req) => invoke<Note>('note:create', req),
+    read: (req) => invoke<Note>('note:read', req),
+    update: (req) => invoke<Note>('note:update', req),
+    delete: (req) => invoke<void>('note:delete', req),
+    list: (req) => invoke<string[]>('note:list', req),
+    rename: (req) => invoke<void>('note:rename', req),
+    getTitle: (req) => invoke<string>('note:get-title', req),
+    getRelativePath: (req) => invoke<string>('note:get-relative-path', req),
   },
   indexer: {
-    indexVault: (req) => ipcRenderer.invoke('indexer:index-vault', req),
-    getBacklinks: (req) => ipcRenderer.invoke('indexer:get-backlinks', req),
-    searchNotes: (req) => ipcRenderer.invoke('indexer:search-notes', req),
-    searchByTag: (req) => ipcRenderer.invoke('indexer:search-by-tag', req),
-    getAllTags: (req) => ipcRenderer.invoke('indexer:get-all-tags', req),
-    getGraphData: (req) => ipcRenderer.invoke('indexer:get-graph-data', req),
-    startWatching: (req) => ipcRenderer.invoke('indexer:start-watching', req),
-    stopWatching: (req) => ipcRenderer.invoke('indexer:stop-watching', req),
+    indexVault: (req) => invoke<void>('indexer:index-vault', req),
+    getBacklinks: (req) => invoke<unknown[]>('indexer:get-backlinks', req),
+    searchNotes: (req) => invoke<unknown[]>('indexer:search-notes', req),
+    searchByTag: (req) => invoke<unknown[]>('indexer:search-by-tag', req),
+    getAllTags: (req) => invoke<string[]>('indexer:get-all-tags', req),
+    getGraphData: (req) =>
+      invoke<{ nodes: unknown[]; edges: unknown[] }>('indexer:get-graph-data', req),
+    startWatching: (req) => invoke<void>('indexer:start-watching', req),
+    stopWatching: (req) => invoke<void>('indexer:stop-watching', req),
   },
   sync: {
-    authenticate: () => ipcRenderer.invoke('sync:authenticate'),
-    isAuthenticated: () => ipcRenderer.invoke('sync:is-authenticated'),
-    signOut: () => ipcRenderer.invoke('sync:sign-out'),
-    backupVault: (req) => ipcRenderer.invoke('sync:backup-vault', req),
-    listBackups: () => ipcRenderer.invoke('sync:list-backups'),
-    deleteBackup: (req) => ipcRenderer.invoke('sync:delete-backup', req),
-    restoreVault: (req) => ipcRenderer.invoke('sync:restore-vault', req),
+    authenticate: () => invoke<boolean>('sync:authenticate'),
+    isAuthenticated: () => invoke<boolean>('sync:is-authenticated'),
+    signOut: () => invoke<void>('sync:sign-out'),
+    backupVault: (req) => invoke<string>('sync:backup-vault', req),
+    listBackups: () =>
+      invoke<Array<{ id: string; name: string; createdAt: Date }>>('sync:list-backups'),
+    deleteBackup: (req) => invoke<void>('sync:delete-backup', req),
+    restoreVault: (req) => invoke<void>('sync:restore-vault', req),
   },
   asset: {
-    saveImage: (req) => ipcRenderer.invoke('asset:save-image', req),
+    saveImage: (req) => invoke<string>('asset:save-image', req),
   },
   todo: {
-    list: (req) => ipcRenderer.invoke('todo:list', req),
-    toggle: (req) => ipcRenderer.invoke('todo:toggle', req),
-    setDue: (req) => ipcRenderer.invoke('todo:set-due', req),
-    updateSettings: (req) => ipcRenderer.invoke('todo:update-settings', req),
+    list: (req) => invoke<TodoItem[]>('todo:list', req),
+    toggle: (req) => invoke<boolean | null>('todo:toggle', req),
+    setDue: (req) => invoke<void>('todo:set-due', req),
+    updateSettings: (req) => invoke<void>('todo:update-settings', req),
   },
 };
 

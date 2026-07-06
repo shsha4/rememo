@@ -69,7 +69,8 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 - **도메인 에러**: 전용 에러 클래스를 만든다. 예) `NoteNotFoundError`, `NoteAlreadyExistsError`. 서비스는 실패 시 이 에러를 throw한다.
 - **IPC 채널명**: `'도메인:동작'` 케밥/콜론 규칙. 예) `note:create`, `vault:open`, `note:rename`.
 - **IPC 인자**: 인자가 1개 이상인 채널은 **채널당 단일 request object**(`{ ... }`) 하나만 받는다(positional 인자 금지 — 같은 타입 인자 순서 뒤섞임 방지). 인자 0개 채널(`ping`, `system:get-platform`, `vault:select-folder`, `sync:*`의 인자 없는 것들)은 그대로 둔다. request 타입은 `apps/desktop/src/shared/ipc/`에 도메인별로 `<Domain><Action>Request`로 정의하고 **main·preload·renderer 세 계층이 동일 타입을 공유**한다(이 디렉터리는 type-only, `@memograph/core`의 도메인 타입만 type-only import).
-- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle('도메인:동작', async (_event, req: XxxRequest) => {...})`로 등록, 본문에서 `req.*`를 구조분해해 서비스를 호출한다. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
+- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle('도메인:동작', ipcHandler(async (_event, req: XxxRequest) => {...}))`로 등록, 본문에서 `req.*`를 구조분해해 서비스를 호출한다. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
+- **IPC 응답 봉투**: 모든 IPC 응답은 와이어에서 `IpcResult<T>`(`shared/ipc/result.ts`) 봉투로 표준화한다. main 핸들러는 `ipcHandler()`(`main/ipc/ipc-result.ts`)로 감싸 성공/실패를 봉투화하고, preload가 unwrap해 성공 시 `data`를 반환·실패 시 `error.code`를 name으로 갖는 Error를 throw한다(renderer는 기존처럼 `Promise<T>`를 받고 try/catch로 처리).
 - **타입 전용 import**는 `import type { ... }`을 쓴다.
 - **Zustand 스토어**: `interface XxxState`에 상태+액션을 함께 선언하고 `create<XxxState>((set) => ({...}))` 패턴, `useXxxStore`로 export.
 - **파일명**: 서비스 `*.service.ts`, IPC 핸들러 `*.handlers.ts`, 컴포넌트 `PascalCase.tsx`(+동명 `.css`), 스토어 `*.store.ts`.
