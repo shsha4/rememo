@@ -1,0 +1,63 @@
+name: Release
+
+# v* 태그를 push하면 각 OS에서 빌드해 GitHub Release에 첨부한다.
+# 수동 실행(Actions 탭 → Run workflow)도 가능하며, 이 경우 결과물은 Artifacts로 받는다.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write # Release 생성/첨부에 필요
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: build:win
+            artifact: windows
+          - os: macos-latest # Apple Silicon(arm64) 러너
+            build: build:mac
+            artifact: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 워크스페이스 전체 설치(루트에서). 네이티브 모듈은 각 OS 러너의
+      # toolchain(Windows=MSVC, macOS=Xcode)으로 electron-builder가 재빌드한다.
+      - run: npm ci
+
+      # 서명 인증서가 없으므로 macOS 자동 서명 시도를 끈다(package.json의 identity:null과 짝).
+      - name: Build
+        run: npm run ${{ matrix.build }} --workspace=apps/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 태그 없이 수동 실행했을 때 결과물을 내려받기 위한 아티팩트 업로드.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rememo-${{ matrix.artifact }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.dmg
+          if-no-files-found: error
+
+      # 태그로 트리거된 경우에만 Release에 설치 파일을 첨부한다.
+      - name: Attach to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.dmg
