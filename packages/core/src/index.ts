@@ -8,6 +8,7 @@ export * from './domain/sync';
 
 // Parser exports
 export * from './parser/markdown-parser';
+export * from './parser/link-editor';
 
 // Util exports
 export * from './util/note-path';

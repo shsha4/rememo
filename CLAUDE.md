@@ -38,6 +38,7 @@ rememo/
 
 ### ★ 진실의 원천 규칙 (가장 중요)
 - **도메인 타입/에러/파서는 오직 `packages/core`에만 정의한다.**
+- 마크다운을 **읽는 것**뿐 아니라 **쓰는(직렬화) 로직도 core에 둔다.** 예) `parser/link-editor.ts`의 `addWikiLink`/`removeWikiLink`/`hasWikiLink`는 문자열→문자열 순수 함수로, 그래프에서 관계를 추가/삭제할 때 노트 본문을 변형한다(파일 IO는 main의 service가 담당).
 - desktop에서는 반드시 `import ... from '@memograph/core'`로 가져온다. (`packages/core/src/index.ts`가 배럴)
 - **`apps/desktop/src/main` 안에 domain/parser를 복붙하지 말 것.** (과거에 유령 사본이 있었고 파서가 갈라져 버그를 낳았다 — 제거 완료.)
 - core는 vite alias(`vite.config.ts`)와 tsconfig `paths`로 **소스에서 직접** 해석된다. 별도 빌드 선행 불필요.
@@ -48,6 +49,7 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 ```
 - renderer는 Node API에 직접 접근하지 않는다. 반드시 preload가 노출한 `window.electronAPI`를 통한다.
 - 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다. (이미지 asset은 링크/엔티티 인덱싱 대상이 아니므로 `asset:save-image`는 재인덱싱을 트리거하지 않는다.)
+- **그래프에서 노드 간 관계(WikiLink) 편집**: `link:add`/`link:remove`(main/services/link.service.ts + ipc/link.handlers.ts)가 source 노트 본문을 core의 링크 직렬화 함수로 변형해 파일에 쓴다. 이 역시 노트 뮤테이션이므로 `markInternalChange` + 재인덱싱을 트리거한다(note:update와 동일 패턴). 그래프 엣지는 `getGraphData`가 `linkType`(`wiki_link`=명시적·삭제 가능 / `entity_mention`=자동 감지·그래프에서 삭제 불가)을 함께 내려 renderer가 편집 가능 여부를 구분한다. 대상 노트가 에디터에서 미저장(`note.store`의 `dirtyNotePath`) 상태면 편집 유실 방지를 위해 경고 후 막는다.
 - **watcher 이중 재인덱싱 방지**: chokidar watcher(`indexer.service.ts`)도 `**/*.md` 변경 시 재인덱싱한다. 앱이 직접 쓴 파일은 핸들러가 이미 재인덱싱하므로, 파일 쓰기 직후 `indexerService.markInternalChange(path)`를 호출해 뒤이어 오는 watcher 이벤트(add/change/unlink)를 무시하게 한다(외부 에디터 편집만 watcher가 처리). **새 노트 뮤테이션 핸들러를 추가하면 이 `markInternalChange` 호출도 반드시 함께 넣는다**(rename처럼 old/new 두 경로가 바뀌면 둘 다 표시).
 - **로컬 이미지 렌더링**: `webSecurity`가 켜져 있어 프리뷰에서 `file://`로 로컬 이미지를 못 읽는다. 그래서 커스텀 스킴 `rememo-asset://`(main/protocol/)을 등록해 vault 내부 이미지 파일만 서빙한다. 프리뷰(`MarkdownPreview`)는 이미지 src를 이 URL로 변환하되, **반드시 react-markdown의 `defaultUrlTransform`을 먼저 적용**해 `javascript:` 등 위험 스킴을 새니타이즈한다. 프로토콜 핸들러는 이미지 확장자 화이트리스트 + `..` 경로탈출 차단을 적용한다.
 

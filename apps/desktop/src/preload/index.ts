@@ -14,6 +14,8 @@ import type {
   NoteRenameRequest,
   NoteGetTitleRequest,
   NoteGetRelativePathRequest,
+  LinkAddRequest,
+  LinkRemoveRequest,
   IndexerIndexVaultRequest,
   IndexerGetBacklinksRequest,
   IndexerSearchNotesRequest,
@@ -77,6 +79,10 @@ export interface ElectronAPI {
     getTitle: (req: NoteGetTitleRequest) => Promise<string>;
     getRelativePath: (req: NoteGetRelativePathRequest) => Promise<string>;
   };
+  link: {
+    add: (req: LinkAddRequest) => Promise<Note>;
+    remove: (req: LinkRemoveRequest) => Promise<Note>;
+  };
   indexer: {
     indexVault: (req: IndexerIndexVaultRequest) => Promise<void>;
     getBacklinks: (req: IndexerGetBacklinksRequest) => Promise<any[]>;
@@ -128,6 +134,10 @@ const electronAPI: ElectronAPI = {
     rename: (req) => invoke<void>('note:rename', req),
     getTitle: (req) => invoke<string>('note:get-title', req),
     getRelativePath: (req) => invoke<string>('note:get-relative-path', req),
+  },
+  link: {
+    add: (req) => invoke<Note>('link:add', req),
+    remove: (req) => invoke<Note>('link:remove', req),
   },
   indexer: {
     indexVault: (req) => invoke<void>('indexer:index-vault', req),
