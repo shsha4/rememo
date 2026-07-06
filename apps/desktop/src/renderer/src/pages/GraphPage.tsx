@@ -161,7 +161,9 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
 
     setLoading(true);
     try {
-      const data: GraphData = await electronAPI.indexer.getGraphData(currentVault.path);
+      const data: GraphData = await electronAPI.indexer.getGraphData({
+        vaultPath: currentVault.path,
+      });
 
       // Transform data into React Flow format (without positions initially)
       const flowNodes: Node[] = data.nodes.map((node) => ({
@@ -211,7 +213,10 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     if (!currentVault || reindexing) return;
     setReindexing(true);
     try {
-      await electronAPI.indexer.indexVault(currentVault.path, currentVault.id);
+      await electronAPI.indexer.indexVault({
+        vaultPath: currentVault.path,
+        vaultId: currentVault.id,
+      });
       await loadGraphData();
     } catch (error) {
       console.error('Failed to reindex vault:', error);
@@ -296,7 +301,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
 
       try {
         // node.id is the note path
-        const note = await electronAPI.note.read(node.id, currentVault.id);
+        const note = await electronAPI.note.read({ notePath: node.id, vaultId: currentVault.id });
         setCurrentNote(note);
         onNavigateToEditor();
       } catch (error) {

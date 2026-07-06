@@ -30,13 +30,16 @@ function VaultPage() {
       }
 
       setLoadingMessage('노트 공간 생성 중...');
-      const vault = await electronAPI.vault.create(folderPath, vaultName.trim());
+      const vault = await electronAPI.vault.create({
+        vaultPath: folderPath,
+        name: vaultName.trim(),
+      });
 
       setLoadingMessage('노트 인덱싱 중...');
-      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.indexVault({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('파일 감시 시작 중...');
-      await electronAPI.indexer.startWatching(vault.path, vault.id);
+      await electronAPI.indexer.startWatching({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('완료!');
 
@@ -67,13 +70,13 @@ function VaultPage() {
       }
 
       setLoadingMessage('노트 공간 열기 중...');
-      const vault = await electronAPI.vault.open(folderPath);
+      const vault = await electronAPI.vault.open({ vaultPath: folderPath });
 
       setLoadingMessage('노트 인덱싱 중...');
-      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.indexVault({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('파일 감시 시작 중...');
-      await electronAPI.indexer.startWatching(vault.path, vault.id);
+      await electronAPI.indexer.startWatching({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('완료!');
 
@@ -96,13 +99,13 @@ function VaultPage() {
       setLoading(true);
       setLoadingMessage('노트 공간 열기 중...');
 
-      const vault = await electronAPI.vault.open(vaultPath);
+      const vault = await electronAPI.vault.open({ vaultPath });
 
       setLoadingMessage('노트 인덱싱 중...');
-      await electronAPI.indexer.indexVault(vault.path, vault.id);
+      await electronAPI.indexer.indexVault({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('파일 감시 시작 중...');
-      await electronAPI.indexer.startWatching(vault.path, vault.id);
+      await electronAPI.indexer.startWatching({ vaultPath: vault.path, vaultId: vault.id });
 
       setLoadingMessage('완료!');
 

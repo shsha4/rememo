@@ -27,6 +27,7 @@ rememo/
         │   ├── protocol/   # 커스텀 스킴 핸들러 (예: rememo-asset:// 로컬 이미지 서빙)
         │   └── database/   # SQLite 스키마
         ├── preload/        # contextBridge로 안전한 API 노출
+        ├── shared/ipc/     # main·preload·renderer가 공유하는 IPC request 타입 (type-only, 도메인별 파일 + 배럴)
         └── renderer/src/   # React UI
             ├── pages/      # 화면 단위 (Editor/Graph/Search/Vault)
             ├── components/ # 재사용 컴포넌트
@@ -67,7 +68,8 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
   ```
 - **도메인 에러**: 전용 에러 클래스를 만든다. 예) `NoteNotFoundError`, `NoteAlreadyExistsError`. 서비스는 실패 시 이 에러를 throw한다.
 - **IPC 채널명**: `'도메인:동작'` 케밥/콜론 규칙. 예) `note:create`, `vault:open`, `note:rename`.
-- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle`로 등록. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
+- **IPC 인자**: 인자가 1개 이상인 채널은 **채널당 단일 request object**(`{ ... }`) 하나만 받는다(positional 인자 금지 — 같은 타입 인자 순서 뒤섞임 방지). 인자 0개 채널(`ping`, `system:get-platform`, `vault:select-folder`, `sync:*`의 인자 없는 것들)은 그대로 둔다. request 타입은 `apps/desktop/src/shared/ipc/`에 도메인별로 `<Domain><Action>Request`로 정의하고 **main·preload·renderer 세 계층이 동일 타입을 공유**한다(이 디렉터리는 type-only, `@memograph/core`의 도메인 타입만 type-only import).
+- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle('도메인:동작', async (_event, req: XxxRequest) => {...})`로 등록, 본문에서 `req.*`를 구조분해해 서비스를 호출한다. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
 - **타입 전용 import**는 `import type { ... }`을 쓴다.
 - **Zustand 스토어**: `interface XxxState`에 상태+액션을 함께 선언하고 `create<XxxState>((set) => ({...}))` 패턴, `useXxxStore`로 export.
 - **파일명**: 서비스 `*.service.ts`, IPC 핸들러 `*.handlers.ts`, 컴포넌트 `PascalCase.tsx`(+동명 `.css`), 스토어 `*.store.ts`.

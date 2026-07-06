@@ -1,5 +1,10 @@
 import { ipcMain } from 'electron';
 import { googleDriveService } from '../services/google-drive.service';
+import type {
+  SyncBackupVaultRequest,
+  SyncDeleteBackupRequest,
+  SyncRestoreVaultRequest,
+} from '../../shared/ipc';
 
 export function setupSyncHandlers() {
   // Google Drive Authentication
@@ -16,7 +21,8 @@ export function setupSyncHandlers() {
   });
 
   // Backup operations
-  ipcMain.handle('sync:backup-vault', async (_event, vaultPath: string) => {
+  ipcMain.handle('sync:backup-vault', async (_event, req: SyncBackupVaultRequest) => {
+    const { vaultPath } = req;
     return googleDriveService.backupVault(vaultPath);
   });
 
@@ -24,12 +30,14 @@ export function setupSyncHandlers() {
     return googleDriveService.listBackups();
   });
 
-  ipcMain.handle('sync:delete-backup', async (_event, backupId: string) => {
+  ipcMain.handle('sync:delete-backup', async (_event, req: SyncDeleteBackupRequest) => {
+    const { backupId } = req;
     return googleDriveService.deleteBackup(backupId);
   });
 
   // Restore operations
-  ipcMain.handle('sync:restore-vault', async (_event, backupId: string, targetPath: string) => {
+  ipcMain.handle('sync:restore-vault', async (_event, req: SyncRestoreVaultRequest) => {
+    const { backupId, targetPath } = req;
     return googleDriveService.restoreVault(backupId, targetPath);
   });
 }

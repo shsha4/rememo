@@ -43,12 +43,12 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
 
     setIsSaving(true);
     try {
-      const updatedNote = await electronAPI.note.update(
-        currentNote.path,
-        currentVault.id,
-        { content },
-        currentVault.path,
-      );
+      const updatedNote = await electronAPI.note.update({
+        notePath: currentNote.path,
+        vaultId: currentVault.id,
+        update: { content },
+        vaultPath: currentVault.path,
+      });
       setCurrentNote(updatedNote);
       // Trigger graph refresh to update entity mentions
       triggerGraphRefresh();
@@ -69,7 +69,7 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
     if (!confirmed) return;
 
     try {
-      await electronAPI.note.delete(currentNote.path, currentVault.path);
+      await electronAPI.note.delete({ notePath: currentNote.path, vaultPath: currentVault.path });
       setCurrentNote(null);
       setSidebarKey((prev) => prev + 1); // Force Sidebar to reload
       onNoteDeleted?.();
