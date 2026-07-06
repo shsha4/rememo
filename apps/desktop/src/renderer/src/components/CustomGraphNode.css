@@ -11,7 +11,9 @@
   padding: 12px 16px;
   border-radius: 12px;
   background: var(--node-color);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
@@ -19,7 +21,9 @@
 
 .custom-graph-node:hover {
   transform: scale(1.05) translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.25),
+    0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .node-content {
@@ -69,13 +73,17 @@
 /* Highlight states */
 .custom-graph-node.selected {
   transform: scale(1.15);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.6), 0 8px 30px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 3px rgba(102, 126, 234, 0.6),
+    0 8px 30px rgba(0, 0, 0, 0.3);
   z-index: 1000 !important;
 }
 
 .custom-graph-node.highlighted {
   transform: scale(1.08);
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.4), 0 6px 25px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 0 0 2px rgba(102, 126, 234, 0.4),
+    0 6px 25px rgba(0, 0, 0, 0.25);
 }
 
 .custom-graph-node.dimmed {
@@ -84,7 +92,7 @@
 }
 
 /* Animated pulse for root nodes */
-.custom-graph-node[style*="--node-depth: 0"]::before {
+.custom-graph-node[style*='--node-depth: 0']::before {
   content: '';
   position: absolute;
   inset: -4px;
@@ -95,7 +103,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.3;
   }

@@ -136,7 +136,8 @@
 
 .split-divider {
   width: 1px;
-  background: linear-gradient(to bottom,
+  background: linear-gradient(
+    to bottom,
     transparent,
     var(--border-primary) 10%,
     var(--border-primary) 90%,

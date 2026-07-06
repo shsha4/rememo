@@ -7,7 +7,12 @@ interface UseResizableOptions {
   storageKey?: string;
 }
 
-export function useResizable({ initialWidth, minWidth, maxWidth, storageKey }: UseResizableOptions) {
+export function useResizable({
+  initialWidth,
+  minWidth,
+  maxWidth,
+  storageKey,
+}: UseResizableOptions) {
   // Load saved width from localStorage if available
   const getSavedWidth = () => {
     if (storageKey) {
@@ -27,22 +32,28 @@ export function useResizable({ initialWidth, minWidth, maxWidth, storageKey }: U
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsResizing(true);
-    startXRef.current = e.clientX;
-    startWidthRef.current = width;
-    e.preventDefault();
-  }, [width]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsResizing(true);
+      startXRef.current = e.clientX;
+      startWidthRef.current = width;
+      e.preventDefault();
+    },
+    [width],
+  );
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
 
-    const delta = e.clientX - startXRef.current;
-    const newWidth = startWidthRef.current + delta;
-    const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      const delta = e.clientX - startXRef.current;
+      const newWidth = startWidthRef.current + delta;
+      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
 
-    setWidth(clampedWidth);
-  }, [isResizing, minWidth, maxWidth]);
+      setWidth(clampedWidth);
+    },
+    [isResizing, minWidth, maxWidth],
+  );
 
   const handleMouseUp = useCallback(() => {
     if (isResizing) {

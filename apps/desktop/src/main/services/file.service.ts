@@ -42,7 +42,11 @@ export class FileService {
     return fs.readFile(filePath, encoding);
   }
 
-  async writeFile(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): Promise<void> {
+  async writeFile(
+    filePath: string,
+    content: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): Promise<void> {
     const dir = path.dirname(filePath);
     await this.createDirectory(dir);
     await fs.writeFile(filePath, content, encoding);

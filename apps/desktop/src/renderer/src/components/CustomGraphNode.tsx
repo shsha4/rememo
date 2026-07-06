@@ -19,11 +19,11 @@ function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
   // Generate color based on depth
   const getDepthColor = (d: number) => {
     const colors = [
-      'var(--depth-0)',  // Root nodes
-      'var(--depth-1)',  // Level 1
-      'var(--depth-2)',  // Level 2
-      'var(--depth-3)',  // Level 3
-      'var(--depth-4)',  // Level 4+
+      'var(--depth-0)', // Root nodes
+      'var(--depth-1)', // Level 1
+      'var(--depth-2)', // Level 2
+      'var(--depth-3)', // Level 3
+      'var(--depth-4)', // Level 4+
     ];
     return colors[Math.min(d, colors.length - 1)];
   };
@@ -33,15 +33,19 @@ function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
     isSelected && 'selected',
     isHighlighted && 'highlighted',
     isDimmed && 'dimmed',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
       className={className}
-      style={{
-        '--node-color': getDepthColor(depth),
-        '--node-depth': depth,
-      } as any}
+      style={
+        {
+          '--node-color': getDepthColor(depth),
+          '--node-depth': depth,
+        } as any
+      }
     >
       <Handle type="source" position={Position.Top} className="node-handle" />
 
