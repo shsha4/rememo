@@ -47,6 +47,7 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 ```
 - renderer는 Node API에 직접 접근하지 않는다. 반드시 preload가 노출한 `window.electronAPI`를 통한다.
 - 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다. (이미지 asset은 링크/엔티티 인덱싱 대상이 아니므로 `asset:save-image`는 재인덱싱을 트리거하지 않는다.)
+- **watcher 이중 재인덱싱 방지**: chokidar watcher(`indexer.service.ts`)도 `**/*.md` 변경 시 재인덱싱한다. 앱이 직접 쓴 파일은 핸들러가 이미 재인덱싱하므로, 파일 쓰기 직후 `indexerService.markInternalChange(path)`를 호출해 뒤이어 오는 watcher 이벤트(add/change/unlink)를 무시하게 한다(외부 에디터 편집만 watcher가 처리). **새 노트 뮤테이션 핸들러를 추가하면 이 `markInternalChange` 호출도 반드시 함께 넣는다**(rename처럼 old/new 두 경로가 바뀌면 둘 다 표시).
 - **로컬 이미지 렌더링**: `webSecurity`가 켜져 있어 프리뷰에서 `file://`로 로컬 이미지를 못 읽는다. 그래서 커스텀 스킴 `rememo-asset://`(main/protocol/)을 등록해 vault 내부 이미지 파일만 서빙한다. 프리뷰(`MarkdownPreview`)는 이미지 src를 이 URL로 변환하되, **반드시 react-markdown의 `defaultUrlTransform`을 먼저 적용**해 `javascript:` 등 위험 스킴을 새니타이즈한다. 프로토콜 핸들러는 이미지 확장자 화이트리스트 + `..` 경로탈출 차단을 적용한다.
 
 ---

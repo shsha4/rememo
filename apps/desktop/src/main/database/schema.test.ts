@@ -77,8 +77,7 @@ describe('initializeDatabase — FTS5 dead schema 제거', () => {
       expect(insert).not.toThrow();
 
       const row = db.prepare('SELECT title FROM notes WHERE id = ?').get('n1') as
-        | { title: string }
-        | undefined;
+        { title: string } | undefined;
       expect(row?.title).toBe('제목');
     } finally {
       closeDatabase(db);
