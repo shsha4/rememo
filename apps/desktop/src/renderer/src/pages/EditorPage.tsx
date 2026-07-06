@@ -23,7 +23,6 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
-  const [sidebarKey, setSidebarKey] = useState(0);
 
   // 노트가 바뀌거나(경로) 같은 노트라도 내용(contentHash)이 바뀌면 렌더 중 즉시 content를 교체한다.
   // - contentHash 기준이라 다른 탭(할 일 등)에서 파일이 수정돼 스토어가 갱신되면 에디터에도 실시간 반영된다.
@@ -71,7 +70,8 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
     try {
       await electronAPI.note.delete(currentNote.path, currentVault.path);
       setCurrentNote(null);
-      setSidebarKey((prev) => prev + 1); // Force Sidebar to reload
+      // onNoteDeleted가 appKey를 올려 EditorPage(내부 Sidebar 포함)를 통째로 리마운트하므로
+      // 별도의 sidebarKey로 Sidebar만 다시 마운트할 필요가 없다(이중 리마운트 제거).
       onNoteDeleted?.();
     } catch (error: any) {
       console.error('Failed to delete note:', error);
@@ -115,7 +115,7 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
   return (
     <div className="editor-page">
       <div className="editor-layout">
-        <Sidebar key={`sidebar-${sidebarKey}`} />
+        <Sidebar />
 
         <main className="editor-main">
           {currentNote ? (

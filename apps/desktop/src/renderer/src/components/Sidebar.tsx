@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
@@ -12,7 +12,12 @@ function Sidebar() {
   const [newNoteName, setNewNoteName] = useState('');
   const [editingNotePath, setEditingNotePath] = useState<string | null>(null);
   const [editingNoteName, setEditingNoteName] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  // 입력창(새 노트/이름변경)이 DOM에 붙는 순간 포커스한다. 콜백 ref는 마운트 시 정확히 한 번
+  // 호출되므로, setTimeout 지연 포커스처럼 리마운트/재렌더와 경합해 "가끔 커서가 안 먹는" 문제가 없다.
+  // useCallback([])로 identity를 고정해 타이핑에 따른 재렌더 때 재호출되지 않게 한다.
+  const focusOnMount = useCallback((el: HTMLInputElement | null) => {
+    if (el) el.focus();
+  }, []);
   // 가장 최근에 선택 요청한 노트 경로. 연속 클릭 시 이전 요청의 응답을 무시하기 위해 사용.
   const latestSelectRef = useRef<string | null>(null);
   // 방향키 연타를 디바운스하기 위한 타이머와, 연타 중 누적되는 목표 인덱스.
@@ -31,16 +36,6 @@ function Sidebar() {
       loadNotes();
     }
   }, [currentVault]);
-
-  // Focus input when creating/editing note
-  useEffect(() => {
-    if ((isCreatingNote || editingNotePath) && inputRef.current) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    }
-  }, [isCreatingNote, editingNotePath]);
 
   // 방향키 위/아래로 노트 목록을 이동한다(활성 노트 기준, 끝에서 순환).
   // 입력창·에디터에 포커스가 있을 땐 가로채지 않는다.
@@ -222,7 +217,7 @@ function Sidebar() {
       {isCreatingNote && (
         <div className="create-note-form">
           <input
-            ref={inputRef}
+            ref={focusOnMount}
             type="text"
             placeholder="Note name"
             value={newNoteName}
@@ -264,7 +259,7 @@ function Sidebar() {
                   {editingNotePath === notePath ? (
                     <div className="edit-note-form">
                       <input
-                        ref={inputRef}
+                        ref={focusOnMount}
                         type="text"
                         value={editingNoteName}
                         onChange={(e) => setEditingNoteName(e.target.value)}
