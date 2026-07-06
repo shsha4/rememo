@@ -78,19 +78,29 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
     switch (viewMode) {
       case 'edit':
         return (
-          <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />
+          <MarkdownEditor
+            value={content}
+            onChange={handleContentChange}
+            onSave={handleSave}
+            vaultPath={currentVault?.path}
+          />
         );
       case 'preview':
-        return <MarkdownPreview content={content} />;
+        return <MarkdownPreview content={content} vaultPath={currentVault?.path} />;
       case 'split':
         return (
           <div className="split-view">
             <div className="split-pane">
-              <MarkdownEditor value={content} onChange={handleContentChange} onSave={handleSave} />
+              <MarkdownEditor
+                value={content}
+                onChange={handleContentChange}
+                onSave={handleSave}
+                vaultPath={currentVault?.path}
+              />
             </div>
             <div className="split-divider" />
             <div className="split-pane">
-              <MarkdownPreview content={content} />
+              <MarkdownPreview content={content} vaultPath={currentVault?.path} />
             </div>
           </div>
         );

@@ -52,6 +52,17 @@ export class FileService {
     await fs.writeFile(filePath, content, encoding);
   }
 
+  async writeBinaryFile(
+    filePath: string,
+    data: Uint8Array,
+    options?: { exclusive?: boolean },
+  ): Promise<void> {
+    const dir = path.dirname(filePath);
+    await this.createDirectory(dir);
+    // exclusive면 'wx' 플래그로 이미 존재하는 파일을 덮어쓰지 않고 EEXIST를 던진다.
+    await fs.writeFile(filePath, data, options?.exclusive ? { flag: 'wx' } : undefined);
+  }
+
   async readDir(dirPath: string): Promise<string[]> {
     return fs.readdir(dirPath);
   }
