@@ -12,6 +12,14 @@ export interface VaultConfig {
   name: string;
   defaultNoteLocation?: string;
   defaultAssetLocation?: string;
+  notifications?: NotificationSettings;
+}
+
+export interface NotificationSettings {
+  /** 할 일 마감 알림 사용 여부 */
+  enabled: boolean;
+  /** 마감일에 시각이 없을 때 알림을 보낼 기본 시각 ('HH:mm') */
+  defaultTime: string;
 }
 
 export class VaultNotFoundError extends Error {

@@ -57,6 +57,22 @@ export function initializeDatabase(dbPath: string): Database.Database {
     );
   `);
 
+  // Create todos table (체크박스 할 일)
+  // No FOREIGN KEY constraints for flexibility (links/tags 테이블과 동일한 방침)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS todos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      note_path TEXT NOT NULL,
+      text TEXT NOT NULL,
+      completed INTEGER NOT NULL,
+      due_date TEXT,
+      has_time INTEGER NOT NULL,
+      line INTEGER NOT NULL,
+      position_start INTEGER NOT NULL,
+      position_end INTEGER NOT NULL
+    );
+  `);
+
   // Create backlinks view (virtual table for quick backlink queries)
   db.exec(`
     CREATE VIEW IF NOT EXISTS backlinks AS
@@ -78,6 +94,9 @@ export function initializeDatabase(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_note_path);
     CREATE INDEX IF NOT EXISTS idx_tags_note ON tags(note_path);
     CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
+    CREATE INDEX IF NOT EXISTS idx_todos_note ON todos(note_path);
+    CREATE INDEX IF NOT EXISTS idx_todos_due ON todos(due_date);
+    CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
   `);
 
   // Full-text search table for notes

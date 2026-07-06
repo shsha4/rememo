@@ -35,5 +35,8 @@ coverage/
 # OS
 Thumbs.db
 
+# Claude Code (에이전트 격리 워크트리 — 임베디드 저장소라 추적 제외)
+.claude/worktrees/
+
 # Electron
 release/

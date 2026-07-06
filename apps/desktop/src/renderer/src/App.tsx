@@ -3,9 +3,12 @@ import VaultPage from './pages/VaultPage';
 import EditorPage from './pages/EditorPage';
 import GraphPage from './pages/GraphPage';
 import SearchPage from './pages/SearchPage';
+import TodoPage from './pages/TodoPage';
+import SettingsPage from './pages/SettingsPage';
+import HelpPage from './pages/HelpPage';
 import { useVaultStore } from './stores/vault.store';
 
-type Page = 'vault' | 'editor' | 'graph' | 'search';
+type Page = 'vault' | 'editor' | 'graph' | 'search' | 'todo' | 'settings' | 'help';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('vault');
@@ -58,6 +61,24 @@ function App() {
         >
           검색
         </button>
+        <button
+          className={`nav-btn ${currentPage === 'todo' ? 'active' : ''}`}
+          onClick={() => handlePageChange('todo')}
+        >
+          할 일
+        </button>
+        <button
+          className={`nav-btn ${currentPage === 'settings' ? 'active' : ''}`}
+          onClick={() => handlePageChange('settings')}
+        >
+          설정
+        </button>
+        <button
+          className={`nav-btn ${currentPage === 'help' ? 'active' : ''}`}
+          onClick={() => handlePageChange('help')}
+        >
+          도움말
+        </button>
       </div>
     );
   };
@@ -91,6 +112,30 @@ function App() {
               key={`search-${pageKey}`}
               onNavigateToEditor={() => handlePageChange('editor')}
             />
+          </>
+        );
+      case 'todo':
+        return (
+          <>
+            {renderNavBar()}
+            <TodoPage
+              key={`todo-${pageKey}`}
+              onNavigateToEditor={() => handlePageChange('editor')}
+            />
+          </>
+        );
+      case 'settings':
+        return (
+          <>
+            {renderNavBar()}
+            <SettingsPage key={`settings-${pageKey}`} />
+          </>
+        );
+      case 'help':
+        return (
+          <>
+            {renderNavBar()}
+            <HelpPage key={`help-${pageKey}`} />
           </>
         );
       default:

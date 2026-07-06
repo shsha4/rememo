@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import MarkdownPreview from '../components/MarkdownPreview';
@@ -19,15 +19,20 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
   const { currentNote, setCurrentNote, triggerGraphRefresh } = useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
+  const [loadedHash, setLoadedHash] = useState<string | undefined>(currentNote?.contentHash);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
   const [sidebarKey, setSidebarKey] = useState(0);
 
-  // Update content when note changes
-  useEffect(() => {
+  // 노트가 바뀌거나(경로) 같은 노트라도 내용(contentHash)이 바뀌면 렌더 중 즉시 content를 교체한다.
+  // - contentHash 기준이라 다른 탭(할 일 등)에서 파일이 수정돼 스토어가 갱신되면 에디터에도 실시간 반영된다.
+  // - 편집 중에는 스토어의 currentNote가 안 바뀌므로(저장 시에만 갱신) 타이핑 내용이 덮이지 않는다.
+  // - useEffect로 미루지 않고 렌더 중 동기화해 "두 번 클릭해야 반영"되는 지연을 없앤다.
+  if (currentNote?.contentHash !== loadedHash) {
+    setLoadedHash(currentNote?.contentHash);
     setContent(currentNote?.content || '');
-  }, [currentNote]);
+  }
 
   const handleContentChange = (value: string) => {
     setContent(value);
@@ -149,6 +154,8 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
                   </button>
                 </div>
               </div>
+              {/* content를 렌더 중 즉시 동기화(위)하므로 에디터를 remount하지 않아도
+                  노트 전환 시 내용이 바로 갱신된다. remount는 전환 지연의 원인이라 제거. */}
               <div className="editor-content">{renderEditor()}</div>
             </>
           ) : (
