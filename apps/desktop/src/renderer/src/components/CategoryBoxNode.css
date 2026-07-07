@@ -1,0 +1,35 @@
+.category-box {
+  box-sizing: border-box;
+  border: 2px dashed var(--accent-primary);
+  border-radius: 16px;
+  background: rgba(99, 102, 241, 0.06);
+  /* 노트 노드의 클릭·드래그를 가로막지 않는다(카테고리 이동은 좌표 히트테스트로 판정). */
+  pointer-events: none;
+}
+
+/* 박스 상단에 카테고리 이름을 알약형 배지로 얹어 무슨 카테고리인지 바로 보이게 한다. */
+.category-box-label {
+  position: absolute;
+  top: -13px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  background: var(--accent-gradient, var(--accent-primary));
+  padding: 3px 12px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+  white-space: nowrap;
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-box-label::before {
+  content: '📁';
+  font-size: 0.8rem;
+}

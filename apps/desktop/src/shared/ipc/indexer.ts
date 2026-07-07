@@ -40,7 +40,8 @@ export interface IndexerStopWatchingRequest {
 export interface IndexChangedPayload {
   // chokidar 이벤트 종류.
   type: 'add' | 'change' | 'unlink';
-  // 변경된 노트의 절대 경로.
+  // 변경된 노트(또는 카테고리 폴더)의 절대 경로. 폴더 경로면 노트 목록엔 없지만
+  // planIndexRefresh가 목록 재로드를 유발해 사이드바가 폴더(카테고리)를 다시 읽는다.
   path: string;
   // 어느 vault에서 발생했는지(렌더러가 현재 vault와 대조해 무시 여부를 판단).
   vaultPath: string;

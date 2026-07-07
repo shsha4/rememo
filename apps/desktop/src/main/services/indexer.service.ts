@@ -301,6 +301,24 @@ export class IndexerService {
       }
     });
 
+    // 폴더(카테고리) 추가/삭제. 빈 카테고리는 .md가 없어 위 파일 이벤트로는 잡히지 않으므로,
+    // 디렉터리 이벤트를 받아 UI를 갱신한다(인덱스는 노트가 없어 손댈 게 없고, push만 보낸다).
+    // 앱 자신이 만든 폴더는 category 핸들러가 markInternalChange로 표시해 여기서 무시된다.
+    watcher.on('addDir', async (changedPath: string) => {
+      const fullPath = path.resolve(changedPath);
+      if (fullPath === path.resolve(vaultPath)) return; // vault 루트 자신은 무시
+      if (this.isRecentInternalChange(fullPath)) return;
+      console.log(`Folder added: ${fullPath}`);
+      await this.notifyIndexChanged('add', fullPath, vaultPath);
+    });
+
+    watcher.on('unlinkDir', async (changedPath: string) => {
+      const fullPath = path.resolve(changedPath);
+      if (this.isRecentInternalChange(fullPath)) return;
+      console.log(`Folder removed: ${fullPath}`);
+      await this.notifyIndexChanged('unlink', fullPath, vaultPath);
+    });
+
     this.watchers.set(vaultPath, watcher);
   }
 

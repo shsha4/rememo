@@ -30,6 +30,8 @@
     },
     "files": [
       "dist/**/*",
+      "build/icon.png",
+      "build/icon.ico",
       "package.json"
     ],
     "win": {
@@ -42,7 +44,7 @@
         }
       ],
       "artifactName": "${productName}-${version}-Setup.${ext}",
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -69,7 +71,9 @@
       "title": "${productName} ${version}"
     },
     "asarUnpack": [
-      "**/node_modules/better-sqlite3/**"
+      "**/node_modules/better-sqlite3/**",
+      "build/icon.png",
+      "build/icon.ico"
     ]
   },
   "dependencies": {

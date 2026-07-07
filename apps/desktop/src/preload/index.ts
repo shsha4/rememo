@@ -16,6 +16,10 @@ import type {
   NoteGetRelativePathRequest,
   LinkAddRequest,
   LinkRemoveRequest,
+  CategoryListRequest,
+  CategoryCreateRequest,
+  CategoryRenameRequest,
+  CategoryDeleteRequest,
   IndexerIndexVaultRequest,
   IndexerGetBacklinksRequest,
   IndexerSearchNotesRequest,
@@ -84,6 +88,12 @@ export interface ElectronAPI {
     add: (req: LinkAddRequest) => Promise<Note>;
     remove: (req: LinkRemoveRequest) => Promise<Note>;
   };
+  category: {
+    list: (req: CategoryListRequest) => Promise<string[]>;
+    create: (req: CategoryCreateRequest) => Promise<void>;
+    rename: (req: CategoryRenameRequest) => Promise<void>;
+    delete: (req: CategoryDeleteRequest) => Promise<void>;
+  };
   indexer: {
     indexVault: (req: IndexerIndexVaultRequest) => Promise<void>;
     getBacklinks: (req: IndexerGetBacklinksRequest) => Promise<any[]>;
@@ -142,6 +152,12 @@ const electronAPI: ElectronAPI = {
   link: {
     add: (req) => invoke<Note>('link:add', req),
     remove: (req) => invoke<Note>('link:remove', req),
+  },
+  category: {
+    list: (req) => invoke<string[]>('category:list', req),
+    create: (req) => invoke<void>('category:create', req),
+    rename: (req) => invoke<void>('category:rename', req),
+    delete: (req) => invoke<void>('category:delete', req),
   },
   indexer: {
     indexVault: (req) => invoke<void>('indexer:index-vault', req),

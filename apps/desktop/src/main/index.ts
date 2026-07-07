@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, protocol, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { setupIpcHandlers } from './ipc';
@@ -17,10 +17,19 @@ protocol.registerSchemesAsPrivileged([
   { scheme: ASSET_PROTOCOL, privileges: { standard: true, secure: true } },
 ]);
 
+// 창 아이콘·Dock 아이콘이 공유하는 단일 경로 해석기.
+// Windows 시작표시줄은 멀티사이즈 .ico를 선호(PNG는 기본 로고로 폴백하는 경우가 있음),
+// macOS Dock은 nativeImage(.png)를 쓴다.
+// dev는 소스 트리의 build/, prod는 asarUnpack된 build/(package.json files·asarUnpack에 포함)를 참조한다.
+function resolveIconPath(): string {
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  return isDev
+    ? path.join(__dirname, `../../build/${iconFile}`)
+    : path.join(process.resourcesPath, `app.asar.unpacked/build/${iconFile}`);
+}
+
 function createWindow() {
-  const iconPath = isDev
-    ? path.join(__dirname, '../../build/icon.png')
-    : path.join(process.resourcesPath, 'app.asar.unpacked/build/icon.png');
+  const iconPath = resolveIconPath();
 
   // Only pass the icon when the file actually exists — a missing path makes
   // macOS crash with SIGTRAP when constructing the BrowserWindow.
@@ -62,6 +71,18 @@ app.whenReady().then(() => {
   // Windows에서 시스템 알림이 앱 신원과 함께 뜨도록 AppUserModelId를 지정한다.
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.rememo.desktop');
+  }
+
+  // macOS Dock 아이콘은 BrowserWindow.icon으로 설정되지 않으므로(무시됨)
+  // app.dock.setIcon으로 직접 지정한다. dev/prod 모두 적용.
+  if (process.platform === 'darwin' && app.dock) {
+    const iconPath = resolveIconPath();
+    if (fs.existsSync(iconPath)) {
+      const dockIcon = nativeImage.createFromPath(iconPath);
+      if (!dockIcon.isEmpty()) {
+        app.dock.setIcon(dockIcon);
+      }
+    }
   }
 
   setupAssetProtocol();

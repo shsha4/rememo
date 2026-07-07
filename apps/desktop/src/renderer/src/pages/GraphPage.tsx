@@ -17,14 +17,22 @@ import ReactFlow, {
 } from 'reactflow';
 import type { OnConnectStart, OnConnectEnd, ReactFlowInstance } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { getNoteCategoryPath } from '@memograph/core';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
 import CustomGraphNode from '../components/CustomGraphNode';
+import CategoryBoxNode from '../components/CategoryBoxNode';
 import FloatingEdge from '../components/FloatingEdge';
 import { computeGraphSearch } from '../utils/graph-search';
 import { computeDegrees, degreeToDiameter } from '../utils/graph-degree';
-import { getForceLayoutedElements } from '../utils/graph-layout';
+import { getForceLayoutedElements, type Center } from '../utils/graph-layout';
+import {
+  assignCategoryAnchors,
+  computeCategoryBoxes,
+  findBoxAtPoint,
+  type CategoryBox,
+} from '../utils/graph-categories';
 import type { Note } from '../types';
 import './GraphPage.css';
 
@@ -37,6 +45,7 @@ interface GraphData {
 
 const nodeTypes = {
   custom: CustomGraphNode,
+  categoryBox: CategoryBoxNode,
 };
 
 const edgeTypes = {
@@ -108,7 +117,10 @@ interface GraphPageProps {
 
 function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const { currentVault } = useVaultStore();
-  const { currentNote, setCurrentNote, notes, graphRefreshTrigger } = useNoteStore();
+  const { currentNote, setCurrentNote, notes, graphRefreshTrigger, dirtyNotePath } = useNoteStore();
+
+  const notesDir = currentVault?.config.defaultNoteLocation || 'Notes';
+  const vaultPath = currentVault ? currentVault.path.replace(/\\/g, '/') : '';
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
@@ -122,6 +134,8 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
 
   // 노드 중심 좌표 캐시(배치 안정화용). 새로고침 시 기존 노드를 제자리에 고정한다.
   const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // 현재 카테고리 박스(드래그 종료 시 히트테스트용). 렌더 중 최신 값으로 동기화한다.
+  const boxesRef = useRef<CategoryBox[]>([]);
   // reactflow 인스턴스(최초 1회 화면 맞춤용).
   const rfRef = useRef<ReactFlowInstance | null>(null);
   // 노트 검색 인풋(재색인 후 포커스 복원용).
@@ -211,6 +225,19 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
         node.data.depth = depths.get(node.id) || 0;
       });
 
+      // 카테고리별 앵커를 만들어 같은 카테고리 노드끼리 화면상 뭉치게 한다(박스가 겹치지 않도록).
+      // 카테고리가 많을수록 앵커 반경을 넓혀 박스끼리 서로 떨어지게 한다.
+      const categoryList = data.nodes.map((n) => getNoteCategoryPath(n.path, vaultPath, notesDir));
+      const uniqueCategoryCount = new Set(categoryList.filter(Boolean)).size;
+      const anchorRadius = Math.max(650, uniqueCategoryCount * 280);
+      const anchorByCategory = assignCategoryAnchors(categoryList, anchorRadius);
+      const clusterAnchors = new Map<string, Center>();
+      for (const node of data.nodes) {
+        const category = getNoteCategoryPath(node.path, vaultPath, notesDir);
+        const anchor = anchorByCategory.get(category);
+        if (anchor) clusterAnchors.set(node.path, anchor);
+      }
+
       // Apply organic force-directed layout.
       // 이전 배치 좌표(positionsRef)를 고정해, 새로고침 시 기존 노드는 제자리를 유지하고
       // 새 노드만 주변에 자리잡게 한다(배치가 매번 섞이는 문제 방지).
@@ -218,7 +245,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
         nodes: layoutedNodes,
         edges: layoutedEdges,
         centers,
-      } = getForceLayoutedElements(flowNodes, flowEdges, positionsRef.current);
+      } = getForceLayoutedElements(flowNodes, flowEdges, positionsRef.current, clusterAnchors);
       positionsRef.current = centers;
 
       setNodes(layoutedNodes);
@@ -239,6 +266,8 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
         vaultPath: currentVault.path,
         vaultId: currentVault.id,
       });
+      // 위치 캐시를 비워 새 카테고리 클러스터링으로 다시 배치한다(새로고침=그래프 재정리).
+      positionsRef.current = new Map();
       await loadGraphData();
     } catch (error) {
       console.error('Failed to reindex vault:', error);
@@ -343,11 +372,50 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     );
   }, [displayEdges, searchResult, searchQuery]);
 
+  // 노트 노드 위치로부터 카테고리 박스를 계산한다(같은 카테고리 노드들을 감싸는 사각형).
+  const categoryBoxes = useMemo<CategoryBox[]>(() => {
+    if (!currentVault) return [];
+    const boxInputs = nodes.map((node) => {
+      const r = ((node.data?.size as number) ?? 48) / 2;
+      return {
+        id: node.id,
+        x: node.position.x + r,
+        y: node.position.y + r,
+        r,
+        category: getNoteCategoryPath(node.id, vaultPath, notesDir),
+      };
+    });
+    return computeCategoryBoxes(boxInputs);
+  }, [currentVault, nodes, vaultPath, notesDir]);
+
+  // 드래그 종료 히트테스트에서 최신 박스를 참조할 수 있도록 렌더 중 ref를 동기화한다.
+  boxesRef.current = categoryBoxes;
+
+  // 카테고리 박스를 ReactFlow 배경 노드로 변환한다(노트 노드 뒤에 그려짐, 검색 중엔 숨김).
+  const boxNodes = useMemo<Node[]>(() => {
+    if (searchQuery.trim()) return [];
+    return categoryBoxes.map((box) => ({
+      id: `box:${box.category}`,
+      type: 'categoryBox',
+      position: { x: box.x, y: box.y },
+      data: { label: box.name, width: box.width, height: box.height },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      zIndex: -1,
+      style: { width: box.width, height: box.height },
+    }));
+  }, [categoryBoxes, searchQuery]);
+
+  // 박스 노드는 항상 노트 노드보다 먼저(뒤에) 그린다.
+  const renderedNodes = useMemo(() => [...boxNodes, ...filteredNodes], [boxNodes, filteredNodes]);
+
   // 노드(=노트)를 열어 에디터로 이동한다. 원 전체를 덮는 연결 핸들 때문에 onNodeClick이
   // 안정적으로 발화하지 않으므로, 클릭 판정은 onConnectEnd에서 하고 여기서 실제 열기를 수행한다.
   const openNote = useCallback(
     async (nodeId: string) => {
       if (!currentVault) return;
+      if (nodeId.startsWith('box:')) return; // 카테고리 박스는 노트가 아니다
       try {
         const note = await electronAPI.note.read({ notePath: nodeId, vaultId: currentVault.id });
         setCurrentNote(note);
@@ -361,6 +429,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   );
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_event, node) => {
+    if (node.id.startsWith('box:')) return; // 박스 hover는 하이라이트 대상이 아니다
     setSelectedNode(node.id);
   }, []);
 
@@ -368,11 +437,70 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
     setSelectedNode(null);
   }, []);
 
-  // 사용자가 노드를 옮기면 새 중심 좌표를 캐시에 반영한다(다음 새로고침 때 옮긴 위치 유지).
-  const onNodeDragStop: NodeDragHandler = useCallback((_event, node) => {
-    const r = ((node.data?.size as number) ?? 48) / 2;
-    positionsRef.current.set(node.id, { x: node.position.x + r, y: node.position.y + r });
-  }, []);
+  // 드래그한 노트를 대상 카테고리(폴더)로 이동한다(파일을 옮기고 그래프를 새로고침).
+  const moveNoteToCategory = useCallback(
+    async (notePath: string, targetCategory: string) => {
+      if (!currentVault) return;
+      const fileName = notePath.slice(notePath.lastIndexOf('/') + 1);
+      const newPath = targetCategory
+        ? `${vaultPath}/${notesDir}/${targetCategory}/${fileName}`
+        : `${vaultPath}/${notesDir}/${fileName}`;
+      // 옮긴 노드는 새 카테고리 클러스터로 재배치되도록 위치 캐시를 지운다.
+      positionsRef.current.delete(notePath);
+      try {
+        await electronAPI.note.rename({
+          oldPath: notePath,
+          newPath,
+          vaultPath: currentVault.path,
+          vaultId: currentVault.id,
+        });
+        if (currentNote?.path === notePath) {
+          const moved = await electronAPI.note.read({
+            notePath: newPath,
+            vaultId: currentVault.id,
+          });
+          setCurrentNote(moved);
+        }
+        await loadGraphData();
+      } catch (error) {
+        console.error('Failed to move note to category:', error);
+        const name = error instanceof Error ? error.name : '';
+        if (name === 'NoteAlreadyExistsError') {
+          alert('대상 카테고리에 같은 이름의 노트가 이미 있습니다.');
+        } else {
+          alert('노트 이동에 실패했습니다');
+        }
+        await loadGraphData(); // 실패 시 원위치로 되돌린다.
+      }
+    },
+    [currentVault, vaultPath, notesDir, currentNote, setCurrentNote],
+  );
+
+  // 노드를 옮겼을 때: 놓인 위치가 다른 카테고리 박스면 그 카테고리로 이동, 아니면 좌표만 캐시한다.
+  const onNodeDragStop: NodeDragHandler = useCallback(
+    (_event, node) => {
+      const r = ((node.data?.size as number) ?? 48) / 2;
+      const cx = node.position.x + r;
+      const cy = node.position.y + r;
+
+      const currentCategory = getNoteCategoryPath(node.id, vaultPath, notesDir);
+      const targetBox = findBoxAtPoint(boxesRef.current, cx, cy);
+      const targetCategory = targetBox ? targetBox.category : '';
+
+      if (targetCategory !== currentCategory) {
+        if (dirtyNotePath === node.id) {
+          alert('저장하지 않은 변경이 있어 노트를 옮길 수 없습니다. 먼저 저장하세요.');
+          void loadGraphData(); // 원위치로 되돌린다.
+          return;
+        }
+        void moveNoteToCategory(node.id, targetCategory);
+        return;
+      }
+
+      positionsRef.current.set(node.id, { x: cx, y: cy });
+    },
+    [vaultPath, notesDir, dirtyNotePath, moveNoteToCategory],
+  );
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
@@ -539,8 +667,8 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       </div>
 
       <div className="graph-hint">
-        💡 노드 몸통을 드래그하면 이동, 노드에 커서를 올리면 나타나는 테두리 점을 다른 노드로
-        드래그하면 관계 추가. 관계선을 클릭하면 끊어요(점선=자동 감지 관계라 본문에서만 수정).
+        💡 노드 몸통을 드래그하면 이동, 다른 카테고리 박스로 끌어다 놓으면 그 카테고리로 이동해요.
+        노드 테두리 점을 다른 노드로 드래그하면 관계 추가, 관계선을 클릭하면 끊어요(점선=자동 감지).
       </div>
 
       {/* 로딩 스피너는 '처음' 그래프가 없을 때만 노출한다.
@@ -550,7 +678,7 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       ) : (
         <div className="graph-container">
           <ReactFlow
-            nodes={filteredNodes}
+            nodes={renderedNodes}
             edges={filteredEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
