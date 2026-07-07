@@ -32,6 +32,7 @@ import type {
   TodoToggleRequest,
   TodoSetDueRequest,
   TodoUpdateSettingsRequest,
+  IndexChangedPayload,
 } from '../shared/ipc';
 import type { IpcResult } from '../shared/ipc';
 
@@ -92,6 +93,9 @@ export interface ElectronAPI {
     getGraphData: (req: IndexerGetGraphDataRequest) => Promise<{ nodes: any[]; edges: any[] }>;
     startWatching: (req: IndexerStartWatchingRequest) => Promise<void>;
     stopWatching: (req: IndexerStopWatchingRequest) => Promise<void>;
+    // main → renderer 단방향 push 구독. watcher가 외부 파일 변경을 재색인하면 콜백이 불린다.
+    // 반환값은 언구독 함수(useEffect cleanup에서 호출).
+    onChanged: (callback: (payload: IndexChangedPayload) => void) => () => void;
   };
   sync: {
     authenticate: () => Promise<boolean>;
@@ -149,6 +153,13 @@ const electronAPI: ElectronAPI = {
       invoke<{ nodes: unknown[]; edges: unknown[] }>('indexer:get-graph-data', req),
     startWatching: (req) => invoke<void>('indexer:start-watching', req),
     stopWatching: (req) => invoke<void>('indexer:stop-watching', req),
+    onChanged: (callback) => {
+      const listener = (_event: unknown, payload: IndexChangedPayload) => callback(payload);
+      ipcRenderer.on('indexer:changed', listener);
+      return () => {
+        ipcRenderer.removeListener('indexer:changed', listener);
+      };
+    },
   },
   sync: {
     authenticate: () => invoke<boolean>('sync:authenticate'),

@@ -225,15 +225,24 @@ export class IndexerService {
     console.log(`Starting file watcher for vault: ${vaultPath}`);
 
     const chokidar = await this.getChokidar();
-    const watcher = chokidar.watch('**/*.md', {
-      cwd: vaultPath,
-      ignored: ['**/.memograph/**', '**/node_modules/**'],
+    // chokidar v4+에서는 glob 패턴 지원이 제거됐다. 따라서 vault 디렉터리를 통째로(재귀) 감시하고
+    // `ignored` 함수로 .md 파일만 남긴다. (과거 `chokidar.watch('**/*.md', {cwd})`는 v5에서
+    // '**/*.md'를 literal 경로로 취급해 아무것도 감시하지 못했다.)
+    const watcher = chokidar.watch(vaultPath, {
+      // stats가 있는 파일 이벤트에서만 확장자를 검사한다. 디렉터리(stats 없음/isDirectory)는
+      // 통과시켜야 하위로 재귀 감시가 이어진다. .memograph·node_modules는 경로로 배제한다.
+      ignored: (testPath: string, stats?: { isFile(): boolean }) => {
+        const norm = testPath.replace(/\\/g, '/');
+        if (norm.includes('/.memograph') || norm.includes('/node_modules')) return true;
+        if (stats?.isFile() && !norm.endsWith('.md')) return true;
+        return false;
+      },
       persistent: true,
       ignoreInitial: true,
     });
 
-    watcher.on('add', async (relativePath: string) => {
-      const fullPath = path.join(vaultPath, relativePath);
+    watcher.on('add', async (changedPath: string) => {
+      const fullPath = path.resolve(changedPath);
       if (this.isRecentInternalChange(fullPath)) {
         console.log('internal change 무시:', fullPath);
         return;
@@ -246,13 +255,16 @@ export class IndexerService {
         // Re-index all existing notes' links/tags to detect entity mentions to the new note
         console.log('Re-indexing all notes to detect entity mentions to new note...');
         await this.reindexAllNotesLinks(vaultPath, vaultId);
+
+        // renderer UI 실시간 갱신 알림(DB 재색인 완료 후 발신).
+        await this.notifyIndexChanged('add', fullPath, vaultPath);
       } catch (error) {
         console.error(`Failed to index new note ${fullPath}:`, error);
       }
     });
 
-    watcher.on('change', async (relativePath: string) => {
-      const fullPath = path.join(vaultPath, relativePath);
+    watcher.on('change', async (changedPath: string) => {
+      const fullPath = path.resolve(changedPath);
       if (this.isRecentInternalChange(fullPath)) {
         console.log('internal change 무시:', fullPath);
         return;
@@ -264,13 +276,16 @@ export class IndexerService {
         // Re-index all other notes' links/tags to detect entity mentions to/from this note
         console.log('Re-indexing all notes to update entity mentions...');
         await this.reindexAllNotesLinks(vaultPath, vaultId);
+
+        // renderer UI 실시간 갱신 알림(DB 재색인 완료 후 발신).
+        await this.notifyIndexChanged('change', fullPath, vaultPath);
       } catch (error) {
         console.error(`Failed to reindex note ${fullPath}:`, error);
       }
     });
 
-    watcher.on('unlink', async (relativePath: string) => {
-      const fullPath = path.join(vaultPath, relativePath);
+    watcher.on('unlink', async (changedPath: string) => {
+      const fullPath = path.resolve(changedPath);
       if (this.isRecentInternalChange(fullPath)) {
         console.log('internal change 무시:', fullPath);
         return;
@@ -278,12 +293,34 @@ export class IndexerService {
       console.log(`Note deleted: ${fullPath}`);
       try {
         await this.deleteNoteFromIndex(fullPath, vaultPath);
+
+        // renderer UI 실시간 갱신 알림(DB 재색인 완료 후 발신).
+        await this.notifyIndexChanged('unlink', fullPath, vaultPath);
       } catch (error) {
         console.error(`Failed to delete note from index ${fullPath}:`, error);
       }
     });
 
     this.watchers.set(vaultPath, watcher);
+  }
+
+  // renderer로 인덱스 변경을 push한다. electron(BrowserWindow) 의존은 chokidar와 동일하게
+  // 동적 import로 지연 로드해, 이 모듈을 정적으로 import하는 단위 테스트(node)가 깨지지 않게 한다.
+  private async notifyIndexChanged(
+    type: 'add' | 'change' | 'unlink',
+    fullPath: string,
+    vaultPath: string,
+  ): Promise<void> {
+    // AGENTS.md는 노트가 아니므로 UI 갱신 대상에서 제외한다(indexNote 필터와 일관).
+    if (isAgentGuidePath(fullPath, vaultPath)) {
+      return;
+    }
+    try {
+      const { broadcastIndexChanged } = await import('../notifier');
+      broadcastIndexChanged({ type, path: fullPath, vaultPath });
+    } catch (error) {
+      console.error('Failed to broadcast index change:', error);
+    }
   }
 
   stopWatching(vaultPath: string): void {
