@@ -7,6 +7,7 @@ import TodoPage from './pages/TodoPage';
 import SettingsPage from './pages/SettingsPage';
 import HelpPage from './pages/HelpPage';
 import { useVaultStore } from './stores/vault.store';
+import { useIndexAutoRefresh } from './hooks/useIndexAutoRefresh';
 
 type Page = 'vault' | 'editor' | 'graph' | 'search' | 'todo' | 'settings' | 'help';
 
@@ -15,6 +16,9 @@ function App() {
   const [pageKey, setPageKey] = useState(0);
   const [appKey, setAppKey] = useState(0);
   const { currentVault, loadRecentVaults } = useVaultStore();
+
+  // 외부(Claude Code 등) 파일 변경을 구독해 목록·그래프·열린 노트를 실시간 갱신한다.
+  useIndexAutoRefresh();
 
   useEffect(() => {
     loadRecentVaults();

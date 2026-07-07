@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import MarkdownPreview from '../components/MarkdownPreview';
@@ -16,7 +16,8 @@ interface EditorPageProps {
 }
 
 function EditorPage({ onNoteDeleted }: EditorPageProps) {
-  const { currentNote, setCurrentNote, triggerGraphRefresh } = useNoteStore();
+  const { currentNote, setCurrentNote, triggerGraphRefresh, setDirtyNotePath, externalChangePath } =
+    useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
   const [loadedHash, setLoadedHash] = useState<string | undefined>(currentNote?.contentHash);
@@ -32,6 +33,32 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
     setLoadedHash(currentNote?.contentHash);
     setContent(currentNote?.content || '');
   }
+
+  // 미저장 편집 여부를 스토어에 반영한다(외부 변경 push가 왔을 때 열린 노트를 덮어쓸지 판단용, 안전 모드).
+  // content가 저장된 원본(currentNote.content)과 다르면 dirty로 표시한다.
+  useEffect(() => {
+    const dirty = !!currentNote && content !== currentNote.content;
+    setDirtyNotePath(dirty ? currentNote!.path : null);
+  }, [content, currentNote, setDirtyNotePath]);
+
+  // 외부에서 이 노트가 변경됐고 미저장 편집 때문에 자동 반영을 보류한 상태인지.
+  const hasExternalChange = !!currentNote && externalChangePath === currentNote.path;
+
+  // 외부 변경을 사용자가 수동으로 반영(미저장 편집은 버려짐).
+  const handleReloadExternal = async () => {
+    if (!currentNote || !currentVault) return;
+    try {
+      const fresh = await electronAPI.note.read({
+        notePath: currentNote.path,
+        vaultId: currentVault.id,
+      });
+      // setCurrentNote가 dirty/externalChange 상태를 함께 초기화한다.
+      setCurrentNote(fresh);
+    } catch (error) {
+      console.error('Failed to reload externally changed note:', error);
+      alert(error instanceof Error ? error.message : '외부 변경 내용을 불러오지 못했습니다');
+    }
+  };
 
   const handleContentChange = (value: string) => {
     setContent(value);
@@ -154,6 +181,16 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
                   </button>
                 </div>
               </div>
+              {hasExternalChange && (
+                <div className="external-change-banner">
+                  <span>
+                    이 노트가 외부에서 변경되었습니다. 미저장 편집이 있어 자동 반영을 보류했어요.
+                  </span>
+                  <button className="btn-sm btn-primary" onClick={handleReloadExternal}>
+                    새로고침(외부 내용 불러오기)
+                  </button>
+                </div>
+              )}
               {/* content를 렌더 중 즉시 동기화(위)하므로 에디터를 remount하지 않아도
                   노트 전환 시 내용이 바로 갱신된다. remount는 전환 지연의 원인이라 제거. */}
               <div className="editor-content">{renderEditor()}</div>

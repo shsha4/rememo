@@ -250,3 +250,20 @@
   text-align: center;
   padding: 2rem 1rem;
 }
+
+/* 외부(에이전트/외부 에디터) 변경 알림 배너: 미저장 편집이 있어 자동 반영을 보류했을 때 표시 */
+.external-change-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.4);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.external-change-banner button {
+  flex-shrink: 0;
+}
