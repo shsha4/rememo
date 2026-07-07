@@ -5,12 +5,13 @@
   "private": true,
   "workspaces": [
     "apps/desktop",
-    "packages/core"
+    "packages/core",
+    "packages/cli"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/desktop",
-    "build": "npm run build --workspace=packages/core && npm run build --workspace=apps/desktop",
-    "type-check": "npm run type-check --workspace=packages/core && npm run type-check --workspace=apps/desktop",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/cli && npm run build --workspace=apps/desktop",
+    "type-check": "npm run type-check --workspace=packages/core && npm run type-check --workspace=packages/cli && npm run type-check --workspace=apps/desktop",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write .",
