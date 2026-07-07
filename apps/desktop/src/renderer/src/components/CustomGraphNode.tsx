@@ -6,6 +6,8 @@ import './CustomGraphNode.css';
 interface CustomNodeData {
   label: string;
   depth: number;
+  // 노드 색(카테고리+깊이 반영). GraphPage에서 계산해 주입한다. 없으면 depth 팔레트로 폴백.
+  color?: string;
   // 원 지름(px). 연결 수(degree)에 비례해 커진다.
   size?: number;
   isHighlighted?: boolean;
@@ -16,6 +18,17 @@ interface CustomNodeData {
   isConnectTarget?: boolean;
 }
 
+// 깊이(연결 구조상 거리)별로 노드 색을 달리해 그래프를 색으로 구분한다.
+const DEPTH_COLORS = [
+  'var(--depth-0)',
+  'var(--depth-1)',
+  'var(--depth-2)',
+  'var(--depth-3)',
+  'var(--depth-4)',
+];
+const getDepthColor = (depth: number): string =>
+  DEPTH_COLORS[Math.min(Math.max(depth, 0), DEPTH_COLORS.length - 1)];
+
 function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
   const depth = data.depth || 0;
   const size = data.size || 48;
@@ -24,18 +37,6 @@ function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
   const isDimmed = data.isDimmed || false;
   const isSearchMatch = data.isSearchMatch || false;
   const isConnectTarget = data.isConnectTarget || false;
-
-  // Generate color based on depth
-  const getDepthColor = (d: number) => {
-    const colors = [
-      'var(--depth-0)', // Root nodes
-      'var(--depth-1)', // Level 1
-      'var(--depth-2)', // Level 2
-      'var(--depth-3)', // Level 3
-      'var(--depth-4)', // Level 4+
-    ];
-    return colors[Math.min(d, colors.length - 1)];
-  };
 
   const className = [
     'custom-graph-node',
@@ -53,7 +54,7 @@ function CustomGraphNode({ data }: NodeProps<CustomNodeData>) {
       className={className}
       style={
         {
-          '--node-color': getDepthColor(depth),
+          '--node-color': data.color ?? getDepthColor(depth),
           width: size,
           height: size,
           // 원이 클수록 글자도 살짝 키운다(가독성).

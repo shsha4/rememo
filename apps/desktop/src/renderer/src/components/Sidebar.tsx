@@ -507,9 +507,6 @@ function Sidebar() {
           </div>
         ) : (
           <div className="note-item-wrapper">
-            <span className="tree-icon note-icon" aria-hidden>
-              📄
-            </span>
             <span className="note-name">{note.title}</span>
             <button
               className="btn-edit"
@@ -570,9 +567,6 @@ function Sidebar() {
         >
           <span className={`chevron ${isCollapsed ? '' : 'open'}`} aria-hidden>
             ▶
-          </span>
-          <span className="tree-icon" aria-hidden>
-            📁
           </span>
           {isEditing ? (
             <div className="edit-note-form" onClick={(e) => e.stopPropagation()}>

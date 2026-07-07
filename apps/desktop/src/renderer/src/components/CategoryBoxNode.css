@@ -1,8 +1,8 @@
 .category-box {
   box-sizing: border-box;
-  border: 2px dashed var(--accent-primary);
-  border-radius: 16px;
-  background: rgba(99, 102, 241, 0.06);
+  border: 2px dashed var(--accent-border);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
   /* 노트 노드의 클릭·드래그를 가로막지 않는다(카테고리 이동은 좌표 히트테스트로 판정). */
   pointer-events: none;
 }
@@ -17,12 +17,12 @@
   gap: 4px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--accent-contrast);
   letter-spacing: -0.01em;
-  background: var(--accent-gradient, var(--accent-primary));
+  background: var(--accent-primary);
   padding: 3px 12px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   white-space: nowrap;
   max-width: calc(100% - 28px);
   overflow: hidden;

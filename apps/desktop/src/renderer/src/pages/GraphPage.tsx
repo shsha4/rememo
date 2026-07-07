@@ -7,6 +7,9 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  useNodesInitialized,
+  ReactFlowProvider,
   BackgroundVariant,
   NodeMouseHandler,
   NodeDragHandler,
@@ -15,7 +18,7 @@ import ReactFlow, {
   ConnectionMode,
   MarkerType,
 } from 'reactflow';
-import type { OnConnectStart, OnConnectEnd, ReactFlowInstance } from 'reactflow';
+import type { OnConnectStart, OnConnectEnd } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { getNoteCategoryPath } from '@memograph/core';
 import { electronAPI } from '../api/electron-api';
@@ -26,6 +29,7 @@ import CategoryBoxNode from '../components/CategoryBoxNode';
 import FloatingEdge from '../components/FloatingEdge';
 import { computeGraphSearch } from '../utils/graph-search';
 import { computeDegrees, degreeToDiameter } from '../utils/graph-degree';
+import { assignCategoryColors, nodeColor, UNCATEGORIZED_COLOR } from '../utils/graph-node-color';
 import { getForceLayoutedElements, type Center } from '../utils/graph-layout';
 import {
   assignCategoryAnchors,
@@ -115,8 +119,11 @@ interface GraphPageProps {
   onNavigateToEditor: () => void;
 }
 
-function GraphPage({ onNavigateToEditor }: GraphPageProps) {
+function GraphFlow({ onNavigateToEditor }: GraphPageProps) {
   const { currentVault } = useVaultStore();
+  const { fitView } = useReactFlow();
+  // 모든 노드의 크기 측정이 끝났는지. fitView는 이 시점 이후에 호출해야 정확히 전체를 잡는다.
+  const nodesInitialized = useNodesInitialized();
   const { currentNote, setCurrentNote, notes, graphRefreshTrigger, dirtyNotePath } = useNoteStore();
 
   const notesDir = currentVault?.config.defaultNoteLocation || 'Notes';
@@ -136,18 +143,28 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
   const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   // 현재 카테고리 박스(드래그 종료 시 히트테스트용). 렌더 중 최신 값으로 동기화한다.
   const boxesRef = useRef<CategoryBox[]>([]);
-  // reactflow 인스턴스(최초 1회 화면 맞춤용).
-  const rfRef = useRef<ReactFlowInstance | null>(null);
+  // 그래프별 최초 1회만 fitView 했는지. 노드가 async로 늦게 도착해도 한 번은 화면을 맞춘다.
+  const hasFitRef = useRef(false);
   // 노트 검색 인풋(재색인 후 포커스 복원용).
   const searchInputRef = useRef<HTMLInputElement>(null);
   // 연결 드래그의 시작 노드와 실제 연결 성사 여부(클릭 vs 연결 구분용).
   const connectStartRef = useRef<string | null>(null);
   const didConnectRef = useRef(false);
 
-  // 볼트가 바뀌면 이전 배치 좌표를 버린다(다른 그래프이므로).
+  // 볼트가 바뀌면 이전 배치 좌표를 버린다(다른 그래프이므로). 화면 맞춤도 다시 하도록 초기화.
   useEffect(() => {
     positionsRef.current = new Map();
+    hasFitRef.current = false;
   }, [currentVault]);
+
+  // 노드 크기 측정이 끝나면(그래프당 1회) 전체 그래프를 화면에 맞춘다.
+  // 측정 전에 fitView하면 크기를 0으로 보고 엉뚱하게 맞춰져 우하단 쏠림이 생긴다 →
+  // useNodesInitialized로 측정 완료를 기다렸다가 한 번만 fit(이후엔 뷰포트 유지, 사용자가 확대).
+  useEffect(() => {
+    if (hasFitRef.current || !nodesInitialized || nodes.length === 0) return;
+    hasFitRef.current = true;
+    fitView({ padding: 0.15, duration: 300 });
+  }, [nodesInitialized, nodes.length, fitView]);
 
   // Load graph data when component mounts or vault changes
   useEffect(() => {
@@ -229,6 +246,14 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
       // 카테고리가 많을수록 앵커 반경을 넓혀 박스끼리 서로 떨어지게 한다.
       const categoryList = data.nodes.map((n) => getNoteCategoryPath(n.path, vaultPath, notesDir));
       const uniqueCategoryCount = new Set(categoryList.filter(Boolean)).size;
+
+      // 노드 색: 카테고리(색상) + 깊이(음영)를 함께 반영한다.
+      const categoryColors = assignCategoryColors(categoryList);
+      flowNodes.forEach((node) => {
+        const category = getNoteCategoryPath(node.id, vaultPath, notesDir);
+        const base = (category && categoryColors.get(category)) || UNCATEGORIZED_COLOR;
+        node.data.color = nodeColor(base, (node.data.depth as number) ?? 0);
+      });
       const anchorRadius = Math.max(650, uniqueCategoryCount * 280);
       const anchorByCategory = assignCategoryAnchors(categoryList, anchorRadius);
       const clusterAnchors = new Map<string, Center>();
@@ -691,11 +716,6 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
             onEdgeClick={onEdgeClick}
-            onInit={(instance) => {
-              rfRef.current = instance;
-              // 최초 마운트 시에만 화면 맞춤. 이후 연결/업데이트에서는 뷰포트를 유지한다.
-              instance.fitView({ padding: 0.2 });
-            }}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
@@ -715,16 +735,25 @@ function GraphPage({ onNavigateToEditor }: GraphPageProps) {
               nodeColor={(node) => {
                 const customData = node.data as any;
                 if (customData.isSelected) return 'var(--accent-primary)';
-                if (customData.isHighlighted) return 'var(--accent-secondary)';
-                if (customData.isDimmed) return 'rgba(255, 255, 255, 0.2)';
-                return 'var(--text-secondary)';
+                if (customData.isHighlighted) return 'var(--accent-hover)';
+                if (customData.isDimmed) return 'var(--border-hover)';
+                return 'var(--text-tertiary)';
               }}
-              maskColor="rgba(0, 0, 0, 0.6)"
+              maskColor="rgba(0, 0, 0, 0.4)"
             />
           </ReactFlow>
         </div>
       )}
     </div>
+  );
+}
+
+// useReactFlow/useNodesInitialized 훅을 쓰려면 ReactFlowProvider 안에 있어야 한다.
+function GraphPage(props: GraphPageProps) {
+  return (
+    <ReactFlowProvider>
+      <GraphFlow {...props} />
+    </ReactFlowProvider>
   );
 }
 

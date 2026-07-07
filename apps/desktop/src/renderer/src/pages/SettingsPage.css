@@ -9,19 +9,19 @@
 }
 
 .settings-header {
-  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  min-height: 40px;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
 }
 
 .settings-header h2 {
-  font-size: 1.5rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0;
-  letter-spacing: -0.03em;
 }
 
 .settings-content {
@@ -91,8 +91,7 @@
   border-radius: 8px;
   font-size: 0.9rem;
   outline: none;
-  /* 다크 배경에서 네이티브 시간 위젯(숫자/스피너/시계 아이콘)이 보이고 조작되도록. */
-  color-scheme: dark;
+  /* 네이티브 시간 위젯은 :root의 color-scheme(테마별)을 따라 자동 전환된다. */
 }
 
 .time-input:focus {
@@ -147,7 +146,7 @@
 
 .switch input:checked + .slider::before {
   transform: translateX(20px);
-  background: #ffffff;
+  background: var(--accent-contrast);
 }
 
 .settings-actions {
@@ -157,21 +156,19 @@
 }
 
 .btn-save-settings {
-  padding: 0.7rem 1.75rem;
-  background: var(--accent-gradient);
-  color: #ffffff;
+  padding: 0.65rem 1.5rem;
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  transition: background 0.12s ease;
 }
 
 .btn-save-settings:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  background: var(--accent-hover);
 }
 
 .btn-save-settings:disabled {
@@ -182,4 +179,44 @@
 .settings-saved {
   font-size: 0.82rem;
   color: var(--text-tertiary);
+}
+
+/* 테마 선택 세그먼트 컨트롤 */
+.theme-segment {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  flex-shrink: 0;
+}
+
+.theme-option {
+  padding: 0.45rem 0.9rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.theme-option:hover {
+  color: var(--text-primary);
+}
+
+.theme-option.active {
+  background: var(--bg-primary);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }

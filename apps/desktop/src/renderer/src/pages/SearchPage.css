@@ -7,23 +7,23 @@
 }
 
 .search-header {
-  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  min-height: 40px;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
 }
 
 .search-header h2 {
-  font-size: 1.5rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0;
-  letter-spacing: -0.03em;
 }
 
 .search-controls {
-  padding: 1.5rem;
+  padding: 0.75rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
 }
@@ -58,7 +58,7 @@
 .search-mode-selector .mode-btn.active {
   background: var(--bg-primary);
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-input-group {
@@ -80,7 +80,7 @@
 
 .search-input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .search-input::placeholder {
@@ -88,21 +88,19 @@
 }
 
 .btn-search {
-  padding: 0.85rem 1.75rem;
-  background: var(--accent-gradient);
-  color: #ffffff;
+  padding: 0.85rem 1.5rem;
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  transition: background 0.12s ease;
 }
 
 .btn-search:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  background: var(--accent-hover);
 }
 
 .tags-section {
@@ -141,8 +139,6 @@
 .tag-button:hover {
   background: var(--bg-active);
   border-color: var(--accent-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 .search-results {
@@ -178,8 +174,6 @@
 .result-item:hover {
   background: var(--bg-tertiary);
   border-color: var(--accent-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
 }
 
 .result-title {

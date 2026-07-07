@@ -9,19 +9,16 @@
 }
 
 .help-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
 }
 
 .help-header h2 {
-  font-size: 1.5rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.03em;
+  color: var(--text-secondary);
+  margin: 0 0 0.25rem;
 }
 
 .help-intro {
@@ -56,7 +53,7 @@
 
 .help-card-highlight {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .help-card h3 {
