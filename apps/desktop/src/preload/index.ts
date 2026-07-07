@@ -16,6 +16,8 @@ import type {
   NoteGetRelativePathRequest,
   LinkAddRequest,
   LinkRemoveRequest,
+  LinkResolveRequest,
+  LinkResolveResult,
   CategoryListRequest,
   CategoryCreateRequest,
   CategoryRenameRequest,
@@ -87,6 +89,7 @@ export interface ElectronAPI {
   link: {
     add: (req: LinkAddRequest) => Promise<Note>;
     remove: (req: LinkRemoveRequest) => Promise<Note>;
+    resolve: (req: LinkResolveRequest) => Promise<LinkResolveResult>;
   };
   category: {
     list: (req: CategoryListRequest) => Promise<string[]>;
@@ -152,6 +155,7 @@ const electronAPI: ElectronAPI = {
   link: {
     add: (req) => invoke<Note>('link:add', req),
     remove: (req) => invoke<Note>('link:remove', req),
+    resolve: (req) => invoke<LinkResolveResult>('link:resolve', req),
   },
   category: {
     list: (req) => invoke<string[]>('category:list', req),

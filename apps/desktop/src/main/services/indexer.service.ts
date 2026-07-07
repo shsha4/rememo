@@ -1,5 +1,6 @@
 import { databaseService } from './database.service';
 import { noteService, isAgentGuidePath } from './note.service';
+import { fileService } from './file.service';
 import { MarkdownParser } from '@memograph/core';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
@@ -383,6 +384,30 @@ export class IndexerService {
 
   getBacklinks(vaultPath: string, notePath: string): any[] {
     return databaseService.getBacklinks(vaultPath, notePath);
+  }
+
+  // WikiLink 대상(target)을 실제 노트 경로로 해석하고 그 노트가 존재하는지 판정한다.
+  // 프리뷰에서 [[링크]]를 해결(이동)/미해결(생성) 중 무엇으로 렌더·처리할지 결정하는 데 쓴다.
+  // 해석 규칙은 인덱싱과 동일한 단일 소스(resolveLinkPath: 제목 완전일치→상대경로)를 재사용한다.
+  // exists=false여도 notePath는 "그 노트가 있어야 할 후보 경로"라 미해결 링크 클릭 시 생성 위치가 된다.
+  async resolveLink(
+    vaultPath: string,
+    notePath: string,
+    target: string,
+  ): Promise<{ notePath: string; exists: boolean }> {
+    const resolvedPath = this.resolveLinkPath(target, notePath, vaultPath);
+
+    // 경계 보호: target에 `../` 등이 있으면 resolveLinkPath가 vault 밖 경로를 낼 수 있다.
+    // 이 결과는 프리뷰 클릭 시 note.read/note.create의 파일 IO로 이어지므로, vault를 벗어나면
+    // 거부해 임의 경로 읽기/쓰기를 막는다(asset 핸들러의 `..` 탈출 차단과 동일한 보호).
+    const root = path.resolve(vaultPath);
+    const resolved = path.resolve(resolvedPath);
+    if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+      throw new Error(`링크 대상이 vault 범위를 벗어납니다: ${target}`);
+    }
+
+    const exists = await fileService.fileExists(resolvedPath);
+    return { notePath: resolvedPath, exists };
   }
 
   searchNotes(vaultPath: string, query: string): any[] {

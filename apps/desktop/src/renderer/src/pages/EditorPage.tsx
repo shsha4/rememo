@@ -1,12 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { MarkdownParser } from '@memograph/core';
 import Sidebar from '../components/Sidebar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import MarkdownPreview from '../components/MarkdownPreview';
+import type { WikiLinkResolution } from '../components/MarkdownPreview';
 import Backlinks from '../components/Backlinks';
 import { useNoteStore } from '../stores/note.store';
 import { useVaultStore } from '../stores/vault.store';
 import { electronAPI } from '../api/electron-api';
 import './EditorPage.css';
+
+// [[...]] 문법 파싱용 단일 파서(모듈 레벨: 렌더마다 재생성 안 함).
+const parser = new MarkdownParser();
+
+// 본문에서 유니크한 위키링크 대상(target)들을 뽑는다(헤딩/별칭 제외한 노트 제목·경로).
+function uniqueWikiLinkTargets(content: string): string[] {
+  const targets = parser.parseWikiLinks(content).map((l) => l.target);
+  return [...new Set(targets)];
+}
 
 type ViewMode = 'edit' | 'preview' | 'split';
 type RightPanelTab = 'properties' | 'backlinks';
@@ -16,14 +27,24 @@ interface EditorPageProps {
 }
 
 function EditorPage({ onNoteDeleted }: EditorPageProps) {
-  const { currentNote, setCurrentNote, triggerGraphRefresh, setDirtyNotePath, externalChangePath } =
-    useNoteStore();
+  const {
+    currentNote,
+    setCurrentNote,
+    setNotes,
+    triggerGraphRefresh,
+    setDirtyNotePath,
+    externalChangePath,
+  } = useNoteStore();
   const { currentVault } = useVaultStore();
   const [content, setContent] = useState(currentNote?.content || '');
   const [loadedHash, setLoadedHash] = useState<string | undefined>(currentNote?.contentHash);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
+  // 프리뷰 위키링크 해석 결과: target → {notePath, exists}. 미해결 링크를 흐릿하게 표시하는 데 쓴다.
+  const [wikiLinkResolution, setWikiLinkResolution] = useState<Map<string, WikiLinkResolution>>(
+    new Map(),
+  );
 
   // 노트가 바뀌거나(경로) 같은 노트라도 내용(contentHash)이 바뀌면 렌더 중 즉시 content를 교체한다.
   // - contentHash 기준이라 다른 탭(할 일 등)에서 파일이 수정돼 스토어가 갱신되면 에디터에도 실시간 반영된다.
@@ -59,6 +80,121 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
       alert(error instanceof Error ? error.message : '외부 변경 내용을 불러오지 못했습니다');
     }
   };
+
+  // 노트가 바뀌면 이전 노트 기준 해석 맵을 즉시 버린다(해석은 출발 노트 경로에 의존하므로,
+  // 디바운스 재해석 전까지 스테일 표시가 남지 않게). 클릭 동작은 어차피 즉석 재해석한다.
+  useEffect(() => {
+    setWikiLinkResolution(new Map());
+  }, [currentNote?.path]);
+
+  // 프리뷰가 보일 때만, 본문의 위키링크 대상들을 해석해 해결/미해결을 판정한다(150ms 디바운스).
+  // content(미저장 편집 포함)를 기준으로 해석하므로 방금 입력한 [[X]]도 즉시 반영된다.
+  useEffect(() => {
+    if (viewMode === 'edit' || !currentNote || !currentVault) {
+      return;
+    }
+    const targets = uniqueWikiLinkTargets(content);
+    if (targets.length === 0) {
+      setWikiLinkResolution(new Map());
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await Promise.all(
+          targets.map(async (target) => {
+            try {
+              const res = await electronAPI.link.resolve({
+                vaultPath: currentVault.path,
+                notePath: currentNote.path,
+                target,
+              });
+              return [target, res] as const;
+            } catch {
+              // vault 밖(../) 등 해석 불가 링크는 맵에서 제외한다. 다른 링크 해석까지 막지 않도록
+              // 개별 격리하고, 클릭 시 재해석에서 에러가 표면화된다.
+              return null;
+            }
+          }),
+        );
+        if (!cancelled) {
+          const entries = results.filter(
+            (r): r is readonly [string, WikiLinkResolution] => r !== null,
+          );
+          setWikiLinkResolution(new Map(entries));
+        }
+      } catch (error) {
+        console.error('Failed to resolve wiki links:', error);
+      }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [content, currentNote, currentVault, viewMode]);
+
+  // 프리뷰에서 위키링크 클릭: 해결되면 그 노트를 열고, 미해결이면 확인 후 생성하고 연다.
+  const handleWikiLinkClick = useCallback(
+    async (target: string) => {
+      if (!currentNote || !currentVault) return;
+
+      // 미저장 편집이 있으면 이동 시 사라지므로 먼저 확인한다(외부 변경 안전 모드와 동일한 취지).
+      if (content !== currentNote.content) {
+        const proceed = confirm('저장하지 않은 편집이 있습니다. 이동하면 사라집니다. 계속할까요?');
+        if (!proceed) return;
+      }
+
+      try {
+        // 해석은 출발 노트 경로에 의존하므로 캐시(스테일 가능)를 신뢰하지 않고 항상 즉석 해석한다.
+        // (캐시 wikiLinkResolution은 표시 스타일 전용.)
+        const res = await electronAPI.link.resolve({
+          vaultPath: currentVault.path,
+          notePath: currentNote.path,
+          target,
+        });
+
+        if (res.exists) {
+          const note = await electronAPI.note.read({
+            notePath: res.notePath,
+            vaultId: currentVault.id,
+          });
+          setCurrentNote(note);
+          return;
+        }
+
+        const confirmed = confirm(`"${target}" 노트가 없습니다. 새로 만들까요?`);
+        if (!confirmed) return;
+
+        // 파일명(제목)은 경로 구분자를 제외한 마지막 조각으로 한다([[폴더/노트]] 대응).
+        const title = target.split(/[\\/]/).pop() || target;
+        const created = await electronAPI.note.create({
+          input: {
+            vaultId: currentVault.id,
+            title,
+            path: res.notePath,
+            content: `# ${title}\n\n`,
+          },
+          vaultPath: currentVault.path,
+        });
+        setCurrentNote(created);
+        // 앱 자기 생성이라 watcher push가 억제되므로(markInternalChange), 사이드바 목록/그래프를
+        // 직접 갱신해 새 노트가 즉시 보이게 한다.
+        try {
+          const list = await electronAPI.note.list({ vaultPath: currentVault.path });
+          setNotes(list);
+        } catch (listError) {
+          console.error('Failed to reload note list after wiki link create:', listError);
+        }
+        triggerGraphRefresh();
+      } catch (error) {
+        console.error('Failed to open/create wiki link target:', error);
+        alert(error instanceof Error ? error.message : '링크 대상 노트를 열지 못했습니다');
+      }
+    },
+    [content, currentNote, currentVault, setCurrentNote, setNotes, triggerGraphRefresh],
+  );
 
   const handleContentChange = (value: string) => {
     setContent(value);
@@ -118,7 +254,14 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
           />
         );
       case 'preview':
-        return <MarkdownPreview content={content} vaultPath={currentVault?.path} />;
+        return (
+          <MarkdownPreview
+            content={content}
+            vaultPath={currentVault?.path}
+            wikiLinkResolution={wikiLinkResolution}
+            onWikiLinkClick={handleWikiLinkClick}
+          />
+        );
       case 'split':
         return (
           <div className="split-view">
@@ -132,7 +275,12 @@ function EditorPage({ onNoteDeleted }: EditorPageProps) {
             </div>
             <div className="split-divider" />
             <div className="split-pane">
-              <MarkdownPreview content={content} vaultPath={currentVault?.path} />
+              <MarkdownPreview
+                content={content}
+                vaultPath={currentVault?.path}
+                wikiLinkResolution={wikiLinkResolution}
+                onWikiLinkClick={handleWikiLinkClick}
+              />
             </div>
           </div>
         );
