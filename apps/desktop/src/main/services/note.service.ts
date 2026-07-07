@@ -4,6 +4,15 @@ import { fileService } from './file.service';
 import path from 'path';
 import crypto from 'crypto';
 
+// LLM 에이전트 지침 파일. 볼트 오픈 시 자동 생성되는 프로젝트 메타 파일이지 사용자 노트가
+// 아니므로, 노트 목록·인덱스(그래프/검색/백링크)에서 제외한다. (생성은 vault.service가 담당)
+export const AGENT_GUIDE_FILE = 'AGENTS.md';
+
+/** 볼트 루트의 에이전트 지침(AGENTS.md)인지 판정한다(노트 목록/인덱스 제외용). */
+export function isAgentGuidePath(notePath: string, vaultPath: string): boolean {
+  return path.resolve(notePath) === path.resolve(vaultPath, AGENT_GUIDE_FILE);
+}
+
 export class NoteService {
   async createNote(input: NoteCreateInput): Promise<Note> {
     const exists = await fileService.fileExists(input.path);
@@ -83,10 +92,10 @@ export class NoteService {
   }
 
   async listNotes(vaultPath: string): Promise<string[]> {
-    return this.listNotesRecursive(vaultPath);
+    return this.listNotesRecursive(vaultPath, vaultPath);
   }
 
-  private async listNotesRecursive(dirPath: string): Promise<string[]> {
+  private async listNotesRecursive(dirPath: string, vaultPath: string): Promise<string[]> {
     const entries = await fileService.readDir(dirPath);
     const notes: string[] = [];
 
@@ -100,9 +109,13 @@ export class NoteService {
       }
 
       if (isDir) {
-        const subNotes = await this.listNotesRecursive(fullPath);
+        const subNotes = await this.listNotesRecursive(fullPath, vaultPath);
         notes.push(...subNotes);
       } else if (entry.endsWith('.md')) {
+        // 에이전트 지침 파일(AGENTS.md)은 노트가 아니므로 목록에서 제외한다.
+        if (isAgentGuidePath(fullPath, vaultPath)) {
+          continue;
+        }
         notes.push(normalizeNotePath(fullPath));
       }
     }

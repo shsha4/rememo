@@ -1,5 +1,5 @@
 import { databaseService } from './database.service';
-import { noteService } from './note.service';
+import { noteService, isAgentGuidePath } from './note.service';
 import { MarkdownParser } from '@memograph/core';
 import type { FSWatcher } from 'chokidar';
 import path from 'path';
@@ -174,6 +174,12 @@ export class IndexerService {
   }
 
   async indexNote(notePath: string, vaultPath: string, vaultId: string): Promise<void> {
+    // 에이전트 지침 파일(AGENTS.md)은 노트가 아니므로 인덱싱하지 않는다
+    // (watcher가 외부 편집으로 add/change를 잡아도 DB에 넣지 않도록 이 단일 관문에서 막는다).
+    if (isAgentGuidePath(notePath, vaultPath)) {
+      return;
+    }
+
     // Read the note
     const note = await noteService.readNote(notePath, vaultId);
 

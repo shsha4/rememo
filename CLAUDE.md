@@ -64,6 +64,7 @@ renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle 
 - **LLM 에이전트(Claude Code/Codex)는 SQLite 인덱스를 읽지 않는다.** vault의 `.md` 파일이 진실의 원천이고, `[[위키링크]]`·`#태그`·frontmatter가 곧 관계다. `<vault>/.memograph/index.db`는 **GUI 전용 파생 캐시**이며 앱이 꺼져 있으면 갱신되지 않는다 — 에이전트 관점에선 신뢰 대상이 아니다.
 - 따라서 헤드리스 `packages/cli`(`rememo` 명령)는 **호출 시점에 파일을 즉석 파싱**한다(항상 최신, 데몬·앱·색인 단계 불필요). `rememo context/graph/search`로 관계를 JSON/텍스트로 조회한다.
 - **에이전트 지침(AGENTS.md) 단일 원천 = `packages/core`의 `AGENT_GUIDE` 상수**(core는 순수하므로 파일 쓰기는 각 소비자가 담당). 두 경로로 vault 루트에 뿌려진다: ① **desktop이 볼트 오픈 시 자동 생성** — `vaultService.openVault`가 `ensureAgentGuide`로 없으면 쓰고 **있으면 절대 덮어쓰지 않는다**(사용자 편집 보존, 실패해도 오픈은 진행). ② `rememo init`(cli)이 수동 생성(`--force`로 덮어쓰기). 지침 문구를 바꾸면 이 상수만 고친다.
+- **볼트 루트의 `AGENTS.md`는 사용자 노트가 아닌 프로젝트 메타 파일**이므로 GUI·CLI 모두에서 노트 취급하지 않는다(목록·그래프·검색·백링크에서 제외). 루트 한정이라 하위 폴더의 동명 노트는 정상 노출된다. 파일명은 각 소비 패키지가 단일 정의: **desktop** = `note.service`의 `AGENT_GUIDE_FILE`/`isAgentGuidePath`(→ `listNotes`와 `indexerService.indexNote`[watcher 외부편집 관문] 두 곳에서 필터, vault.service 자동 생성도 재사용), **cli** = `init.ts`의 `AGENT_GUIDE_FILE`(→ `loadVault`가 즉석 로딩 시 필터).
 - 이 경로는 데스크톱 데이터 흐름(renderer→ipc→service→DB)과 **완전히 독립**이다. cli는 Electron/preload/DB를 거치지 않고 파일시스템만 읽는다(better-sqlite3 미의존 → Node ABI 재빌드 함정 없음).
 
 ---
