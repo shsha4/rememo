@@ -17,19 +17,18 @@
 }
 
 .editor-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.4rem 0.75rem;
+  min-height: 40px;
   border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  gap: 1rem;
+  background: var(--bg-secondary);
 }
 
 .editor-header h3 {
-  font-size: 1.5rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
@@ -37,7 +36,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: -0.03em;
 }
 
 .editor-actions {
@@ -51,20 +49,19 @@
   gap: 0;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 0.25rem;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .mode-btn {
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 0.7rem;
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 1;
@@ -77,30 +74,30 @@
 .mode-btn.active {
   background: var(--bg-primary);
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-save,
 .btn-delete {
-  padding: 0.65rem 1.25rem;
+  padding: 0.35rem 0.8rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
   white-space: nowrap;
 }
 
 .btn-save {
-  background: var(--accent-gradient);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  background: var(--accent-primary);
+  color: var(--accent-contrast);
 }
 
 .btn-save:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+  background: var(--accent-hover);
 }
 
 .btn-save:disabled {
@@ -109,14 +106,14 @@
 }
 
 .btn-delete {
-  background: linear-gradient(135deg, var(--danger-primary) 0%, #dc2626 100%);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  background: transparent;
+  color: var(--danger-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-delete:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+  background: var(--danger-soft);
+  border-color: var(--danger-primary);
 }
 
 .editor-content {
@@ -167,7 +164,7 @@
 }
 
 .right-panel {
-  width: 300px;
+  width: 264px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-primary);
   display: flex;
@@ -175,11 +172,9 @@
 }
 
 .panel-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
 }
 
 .panel-tabs {
@@ -210,12 +205,12 @@
 .panel-tab.active {
   background: var(--bg-primary);
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .panel-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: 0.75rem;
   overflow-y: auto;
 }
 
@@ -258,8 +253,8 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.6rem 1rem;
-  background: rgba(245, 158, 11, 0.12);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.4);
+  background: var(--warning-soft);
+  border-bottom: 1px solid var(--warning-primary);
   color: var(--text-primary);
   font-size: 0.85rem;
 }

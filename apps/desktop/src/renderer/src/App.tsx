@@ -6,13 +6,13 @@ import SearchPage from './pages/SearchPage';
 import TodoPage from './pages/TodoPage';
 import SettingsPage from './pages/SettingsPage';
 import HelpPage from './pages/HelpPage';
+import NavRail from './components/NavRail';
+import type { NavPage } from './components/NavRail';
 import { useVaultStore } from './stores/vault.store';
 import { useIndexAutoRefresh } from './hooks/useIndexAutoRefresh';
 
-type Page = 'vault' | 'editor' | 'graph' | 'search' | 'todo' | 'settings' | 'help';
-
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('vault');
+  const [currentPage, setCurrentPage] = useState<NavPage>('editor');
   const [pageKey, setPageKey] = useState(0);
   const [appKey, setAppKey] = useState(0);
   const { currentVault, loadRecentVaults } = useVaultStore();
@@ -27,12 +27,10 @@ function App() {
   useEffect(() => {
     if (currentVault) {
       setCurrentPage('editor');
-    } else {
-      setCurrentPage('vault');
     }
   }, [currentVault]);
 
-  const handlePageChange = (page: Page) => {
+  const handlePageChange = (page: NavPage) => {
     setCurrentPage(page);
     setPageKey((prev) => prev + 1);
   };
@@ -42,112 +40,54 @@ function App() {
     setPageKey((prev) => prev + 1);
   };
 
-  const renderNavBar = () => {
-    if (!currentVault) return null;
-
-    return (
-      <div className="app-nav">
-        <button
-          className={`nav-btn ${currentPage === 'editor' ? 'active' : ''}`}
-          onClick={() => handlePageChange('editor')}
-        >
-          에디터
-        </button>
-        <button
-          className={`nav-btn ${currentPage === 'graph' ? 'active' : ''}`}
-          onClick={() => handlePageChange('graph')}
-        >
-          그래프
-        </button>
-        <button
-          className={`nav-btn ${currentPage === 'search' ? 'active' : ''}`}
-          onClick={() => handlePageChange('search')}
-        >
-          검색
-        </button>
-        <button
-          className={`nav-btn ${currentPage === 'todo' ? 'active' : ''}`}
-          onClick={() => handlePageChange('todo')}
-        >
-          할 일
-        </button>
-        <button
-          className={`nav-btn ${currentPage === 'settings' ? 'active' : ''}`}
-          onClick={() => handlePageChange('settings')}
-        >
-          설정
-        </button>
-        <button
-          className={`nav-btn ${currentPage === 'help' ? 'active' : ''}`}
-          onClick={() => handlePageChange('help')}
-        >
-          도움말
-        </button>
-      </div>
-    );
-  };
-
   const renderPage = () => {
     switch (currentPage) {
-      case 'vault':
-        return <VaultPage />;
       case 'editor':
-        return (
-          <>
-            {renderNavBar()}
-            <EditorPage key={`editor-${appKey}`} onNoteDeleted={handleNoteDeleted} />
-          </>
-        );
+        return <EditorPage key={`editor-${appKey}`} onNoteDeleted={handleNoteDeleted} />;
       case 'graph':
         return (
-          <>
-            {renderNavBar()}
-            <GraphPage
-              key={`graph-${pageKey}`}
-              onNavigateToEditor={() => handlePageChange('editor')}
-            />
-          </>
+          <GraphPage
+            key={`graph-${pageKey}`}
+            onNavigateToEditor={() => handlePageChange('editor')}
+          />
         );
       case 'search':
         return (
-          <>
-            {renderNavBar()}
-            <SearchPage
-              key={`search-${pageKey}`}
-              onNavigateToEditor={() => handlePageChange('editor')}
-            />
-          </>
+          <SearchPage
+            key={`search-${pageKey}`}
+            onNavigateToEditor={() => handlePageChange('editor')}
+          />
         );
       case 'todo':
         return (
-          <>
-            {renderNavBar()}
-            <TodoPage
-              key={`todo-${pageKey}`}
-              onNavigateToEditor={() => handlePageChange('editor')}
-            />
-          </>
+          <TodoPage key={`todo-${pageKey}`} onNavigateToEditor={() => handlePageChange('editor')} />
         );
       case 'settings':
-        return (
-          <>
-            {renderNavBar()}
-            <SettingsPage key={`settings-${pageKey}`} />
-          </>
-        );
+        return <SettingsPage key={`settings-${pageKey}`} />;
       case 'help':
-        return (
-          <>
-            {renderNavBar()}
-            <HelpPage key={`help-${pageKey}`} />
-          </>
-        );
+        return <HelpPage key={`help-${pageKey}`} />;
       default:
-        return <VaultPage />;
+        return <EditorPage key={`editor-${appKey}`} onNoteDeleted={handleNoteDeleted} />;
     }
   };
 
-  return <div className="app">{renderPage()}</div>;
+  // 볼트를 열기 전에는 레일 없이 볼트 선택 화면만 보여준다.
+  if (!currentVault) {
+    return (
+      <div className="app">
+        <VaultPage />
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <div className="app-shell">
+        <NavRail currentPage={currentPage} onNavigate={handlePageChange} />
+        <div className="app-main">{renderPage()}</div>
+      </div>
+    </div>
+  );
 }
 
 export default App;

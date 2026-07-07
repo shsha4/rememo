@@ -4,34 +4,118 @@
   box-sizing: border-box;
 }
 
+/*
+  테마 토큰. 기본값(:root)은 다크, [data-theme='light']에서 라이트로 덮어쓴다.
+  실제 적용 테마는 theme.store가 <html data-theme>로 지정한다(시스템 설정 추종 포함).
+  모든 컴포넌트 CSS는 이 토큰만 참조한다 — 색을 직접 하드코딩하지 않는다.
+*/
 :root {
-  /* Dark-first color palette */
-  --bg-primary: #0d0d0d;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #242424;
-  --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-active: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.12);
+  /* 표면 (은은한 청색 편향 뉴트럴) */
+  --bg-primary: #1a1b1e;
+  --bg-secondary: #202225;
+  --bg-tertiary: #26282c;
+  --bg-hover: rgba(255, 255, 255, 0.055);
+  --bg-active: rgba(75, 131, 209, 0.16);
 
-  --text-primary: #e8e8e8;
-  --text-secondary: #a0a0a0;
-  --text-tertiary: #6b6b6b;
+  --border-primary: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(255, 255, 255, 0.16);
 
-  --accent-primary: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --text-primary: #dcdddf;
+  --text-secondary: #a1a4a9;
+  --text-tertiary: #6c6f75;
 
-  --danger-primary: #ef4444;
-  --danger-hover: #dc2626;
+  /* 강조색 = 차분한 블루 (그라디언트 없이 단색) */
+  --accent-primary: #4b83d1;
+  --accent-hover: #5f93d8;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(75, 131, 209, 0.16);
+  --accent-border: rgba(75, 131, 209, 0.55);
+  --focus-ring: rgba(75, 131, 209, 0.35);
+  /* 과거 그라디언트 참조 호환: 이제 단색이다. */
+  --accent-gradient: var(--accent-primary);
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --danger-primary: #e5534b;
+  --danger-hover: #cf4a43;
+  --danger-soft: rgba(229, 83, 75, 0.12);
 
-  --glass-bg: rgba(26, 26, 26, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --warning-primary: #d9a441;
+  --warning-soft: rgba(217, 164, 65, 0.12);
+
+  /* 그림자: 컬러 글로우 없이 차분한 뉴트럴 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.45);
+
+  /* 헤더/툴바 배경 (과거 glass — 이제 불투명 단색) */
+  --glass-bg: var(--bg-secondary);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* 그래프 노드: 흰 라벨이 얹히므로 중간 톤의 차분한 다색 팔레트(깊이별 구분).
+     네온 그라디언트가 아니라 단색이라 담백하면서도 연결 구조가 색으로 읽힌다. */
+  --graph-node-text: #ffffff;
+  --depth-0: #3f77c4;
+  --depth-1: #3f8f7d;
+  --depth-2: #9c7030;
+  --depth-3: #8f5285;
+  --depth-4: #b05a5a;
+  /* 폴백(단색이 필요할 때) */
+  --graph-node: var(--depth-0);
+
+  /* 마크다운 프리뷰 전용 */
+  --md-heading: var(--text-primary);
+  --md-link: var(--accent-primary);
+  --md-code-bg: var(--bg-tertiary);
+  --md-code-text: #d1917a;
+  --md-quote-border: var(--accent-border);
+  --md-rule: var(--border-primary);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f7f9;
+  --bg-tertiary: #ecedf1;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(59, 116, 196, 0.12);
+
+  --border-primary: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.18);
+
+  --text-primary: #1f2124;
+  --text-secondary: #565961;
+  --text-tertiary: #8a8d93;
+
+  --accent-primary: #3b74c4;
+  --accent-hover: #2f63ab;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(59, 116, 196, 0.12);
+  --accent-border: rgba(59, 116, 196, 0.5);
+  --focus-ring: rgba(59, 116, 196, 0.3);
+
+  --danger-primary: #c23b34;
+  --danger-hover: #a83029;
+  --danger-soft: rgba(194, 59, 52, 0.1);
+
+  --warning-primary: #b3791f;
+  --warning-soft: rgba(179, 121, 31, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.12);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.16);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+
+  --md-code-text: #b5482d;
 }
 
 body {
@@ -57,18 +141,33 @@ body {
   flex-direction: column;
 }
 
+/* 볼트 오픈 후 셸: [좌측 아이콘 레일][본문] */
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 code {
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;
   background: var(--bg-tertiary);
   padding: 0.2em 0.4em;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9em;
 }
 
-/* Modern Scrollbar */
+/* 스크롤바 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -76,69 +175,33 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-tertiary);
+  background: var(--scrollbar-thumb);
   border-radius: 100px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--scrollbar-thumb-hover);
   background-clip: padding-box;
 }
 
-/* App Navigation */
-.app-nav {
-  display: flex;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-primary);
-  padding: 0.75rem 1.5rem;
-  gap: 0.5rem;
-}
-
-.nav-btn {
-  padding: 0.6rem 1.25rem;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.nav-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  background: var(--accent-gradient);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.nav-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-.nav-btn.active {
-  color: #ffffff;
-  background: var(--accent-gradient);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.search-placeholder {
-  flex: 1;
+/* 슬림 툴바: 각 페이지 상단의 얇은 헤더(제목+컨트롤). 옵시디언 뷰 헤더처럼 낮고 담백하게. */
+.view-toolbar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-  font-size: 1.2rem;
-  font-weight: 300;
+  gap: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  min-height: 40px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.view-toolbar .view-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+  margin: 0;
+  white-space: nowrap;
 }

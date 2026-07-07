@@ -7,22 +7,20 @@
 }
 
 .todo-header {
-  padding: 1.25rem 1.5rem;
+  padding: 0.4rem 0.75rem;
+  min-height: 40px;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-secondary);
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .todo-header h2 {
-  font-size: 1.5rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0;
-  letter-spacing: -0.03em;
 }
 
 .todo-count {
@@ -80,7 +78,7 @@
 
 /* 지남 그룹 제목은 경고색 강조 */
 .todo-group-overdue .todo-group-title {
-  color: #ef4444;
+  color: var(--danger-primary);
 }
 
 .todo-list {
@@ -163,8 +161,7 @@
   border-radius: 6px;
   padding: 0.2rem 0.4rem;
   outline: none;
-  /* 다크 배경에서 달력 아이콘/숫자가 보이도록 */
-  color-scheme: dark;
+  /* 네이티브 달력 위젯은 :root의 color-scheme(테마별)을 따라 자동 전환된다. */
 }
 
 .todo-due-input:hover,
@@ -174,8 +171,8 @@
 
 /* 지남 항목의 마감일 입력은 경고색 테두리 */
 .todo-due-input.todo-due-overdue {
-  border-color: #ef4444;
-  color: #ef4444;
+  border-color: var(--danger-primary);
+  color: var(--danger-primary);
 }
 
 .todo-time {
@@ -198,6 +195,6 @@
 }
 
 .todo-due-clear:hover {
-  color: #ef4444;
+  color: var(--danger-primary);
   background: var(--bg-tertiary);
 }

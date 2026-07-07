@@ -15,12 +15,12 @@ function Logo({ size = 48 }: LogoProps) {
       {/* Gradient Definitions */}
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="0%" stopColor="#4b83d1" />
+          <stop offset="100%" stopColor="#3a6db0" />
         </linearGradient>
         <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ec4899" />
-          <stop offset="100%" stopColor="#f43f5e" />
+          <stop offset="0%" stopColor="#6ea3e2" />
+          <stop offset="100%" stopColor="#4b83d1" />
         </linearGradient>
       </defs>
 

@@ -1,25 +1,16 @@
-:root {
-  --depth-0: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --depth-1: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --depth-2: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --depth-3: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  --depth-4: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-}
-
-/* 원형 노드: 크기(width/height)는 degree에 비례해 인라인 스타일로 주입된다. */
+/* 원형 노드: 크기(width/height)는 degree에 비례해 인라인 스타일로 주입된다.
+   색은 단색(--graph-node)으로 통일해 옵시디언식 담백함을 유지한다. */
 .custom-graph-node {
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: var(--node-color);
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-sm);
   transition:
-    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.3s ease,
-    filter 0.3s ease;
+    box-shadow 0.15s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
   cursor: pointer;
   position: relative;
   padding: 6px;
@@ -28,15 +19,15 @@
 
 .custom-graph-node:hover {
   box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.25),
-    0 0 0 3px rgba(255, 255, 255, 0.3);
+    0 0 0 2px var(--accent-border),
+    var(--shadow-md);
 }
 
 .node-label {
-  color: #ffffff;
+  color: var(--graph-node-text);
   font-weight: 600;
   text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   line-height: 1.15;
   /* 긴 제목은 최대 3줄까지 보여주고 말줄임 처리 */
   display: -webkit-box;
@@ -52,7 +43,7 @@
 .node-handle {
   width: 13px;
   height: 13px;
-  background: #ffffff;
+  background: var(--bg-primary);
   border: 2px solid var(--accent-primary);
   opacity: 0;
   transition:
@@ -72,30 +63,30 @@
 /* Highlight states */
 .custom-graph-node.selected {
   box-shadow:
-    0 0 0 4px rgba(102, 126, 234, 0.7),
-    0 8px 30px rgba(0, 0, 0, 0.3);
+    0 0 0 3px var(--accent-primary),
+    var(--shadow-md);
   z-index: 1000 !important;
 }
 
 .custom-graph-node.highlighted {
   box-shadow:
-    0 0 0 3px rgba(102, 126, 234, 0.5),
-    0 6px 25px rgba(0, 0, 0, 0.25);
+    0 0 0 2px var(--accent-border),
+    var(--shadow-md);
 }
 
 .custom-graph-node.dimmed {
-  opacity: 0.2;
-  filter: grayscale(0.7);
+  opacity: 0.25;
+  filter: grayscale(0.6);
 }
 
-/* 검색어에 직접 매칭된 노드: hover/선택(파란 링)과 구분되는 앰버 링으로 강조.
+/* 검색어에 직접 매칭된 노드: hover/선택(블루 링)과 구분되는 앰버 링으로 강조.
    dimmed 규칙보다 뒤에 선언해 매칭 노드는 항상 또렷하게 보이도록 우선한다. */
 .custom-graph-node.search-match {
   opacity: 1;
   filter: none;
   box-shadow:
-    0 0 0 4px rgba(250, 204, 21, 0.9),
-    0 8px 30px rgba(0, 0, 0, 0.3);
+    0 0 0 3px var(--warning-primary),
+    var(--shadow-md);
   z-index: 900 !important;
 }
 
@@ -105,7 +96,7 @@
   filter: none;
   box-shadow:
     0 0 0 3px rgba(52, 211, 153, 0.95),
-    0 0 22px 4px rgba(52, 211, 153, 0.55);
+    0 0 18px 3px rgba(52, 211, 153, 0.45);
   animation: connect-pulse 1.1s ease-in-out infinite;
 }
 
@@ -113,12 +104,12 @@
   0%,
   100% {
     box-shadow:
-      0 0 0 3px rgba(52, 211, 153, 0.95),
-      0 0 22px 4px rgba(52, 211, 153, 0.35);
+      0 0 0 3px rgba(52, 211, 153, 0.9),
+      0 0 16px 3px rgba(52, 211, 153, 0.3);
   }
   50% {
     box-shadow:
-      0 0 0 5px rgba(52, 211, 153, 1),
-      0 0 30px 8px rgba(52, 211, 153, 0.65);
+      0 0 0 4px rgba(52, 211, 153, 1),
+      0 0 22px 5px rgba(52, 211, 153, 0.55);
   }
 }

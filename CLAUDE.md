@@ -1,204 +1,137 @@
 # CLAUDE.md — rememo 개발 하네스
 
-이 문서는 **모든 기여자(사람 + AI)가 동일한 품질로 개발**하기 위한 최상위 지침이다.
-새 작업을 시작하기 전에 이 문서를 먼저 읽고, 아래 **개발 파이프라인**을 따른다.
+모든 기여자(사람+AI)가 동일 품질로 개발하기 위한 최상위 지침. 새 작업 전에 읽고 **§5 파이프라인**을 따른다.
 
-> rememo는 Obsidian을 벤치마킹한 **로컬 우선 마크다운 지식 그래프 데스크톱 앱**이다.
-> Electron + React + TypeScript, 데이터는 전부 로컬 파일시스템(+ SQLite 인덱스)에 저장된다.
+> rememo = Obsidian 벤치마킹 **로컬 우선 마크다운 지식 그래프 데스크톱 앱**. Electron + React + TS, 데이터는 전부 로컬 파일시스템(+ SQLite 인덱스).
 
 ---
 
 ## 1. 아키텍처 지도
 
-npm workspaces 모노레포. **세 개의 워크스페이스가 존재한다.**
+npm workspaces 모노레포, **3 워크스페이스**:
 
 ```
-rememo/
-├── packages/core/          # ★ 도메인 모델 + 마크다운 파서 (진실의 원천)
-│   └── src/
-│       ├── domain/         # Note, Vault, Link, Tag, Sync, Category 타입·에러클래스
-│       │                   #   category.ts: 폴더 기반 카테고리 순수 로직(buildNoteTree/getNoteCategoryPath)
-│       ├── parser/         # MarkdownParser (WikiLink/Tag/YAML/EntityMention)
-│       ├── agent-guide.ts  # AGENT_GUIDE — 에이전트 지침(AGENTS.md) 본문 단일 원천 (desktop·cli 공유)
-│       └── index.ts        # 공개 API 배럴(barrel). 여기서만 export한다.
-├── packages/cli/           # 헤드리스 조회 CLI (`rememo`) — LLM 에이전트용
-│   └── src/
-│       ├── vault.ts        # vault의 .md를 재귀 로드 (SQLite 미사용, 파일 직접 읽기)
-│       ├── graph.ts        # core 파서 재사용해 그래프/백링크/이웃/맥락 계산 (순수 함수)
-│       ├── init.ts         # `rememo init`: 지침(core AGENT_GUIDE)을 vault 루트에 AGENTS.md로 써넣음
-│       └── index.ts        # CLI 진입점 (init/context/graph/search 명령)
-└── apps/desktop/           # Electron 앱
-    └── src/
-        ├── main/           # Main 프로세스 (Node 권한)
-        │   ├── services/   # 비즈니스 로직 (파일 IO, DB, 인덱싱, 이미지 asset)
-        │   ├── ipc/        # IPC 핸들러 (renderer ↔ main 경계)
-        │   ├── protocol/   # 커스텀 스킴 핸들러 (예: rememo-asset:// 로컬 이미지 서빙)
-        │   └── database/   # SQLite 스키마
-        ├── preload/        # contextBridge로 안전한 API 노출
-        ├── shared/ipc/     # main·preload·renderer가 공유하는 IPC request 타입 (type-only, 도메인별 파일 + 배럴)
-        └── renderer/src/   # React UI
-            ├── pages/      # 화면 단위 (Editor/Graph/Search/Vault)
-            ├── components/ # 재사용 컴포넌트
-            ├── stores/     # Zustand 상태
-            ├── utils/      # 순수 유틸 (Node API 없이 문자열/URL 변환 등)
-            └── api/        # preload 브리지 호출 래퍼
+packages/core/   ★ 도메인 모델 + 마크다운 파서 (진실의 원천)
+  domain/        Note/Vault/Link/Tag/Sync/Category 타입·에러 (+category.ts: buildNoteTree 등 폴더 카테고리 순수 로직)
+  parser/        MarkdownParser(WikiLink/Tag/YAML/EntityMention), link-editor.ts(addWikiLink 등 문자열→문자열 직렬화)
+  agent-guide.ts AGENT_GUIDE — AGENTS.md 본문 단일 원천
+  index.ts       공개 API 배럴(여기서만 export)
+packages/cli/    헤드리스 조회 CLI(`rememo`) — LLM 에이전트용. vault.ts(파일 직접 로드)/graph.ts(core 파서 재사용)/init.ts/index.ts
+apps/desktop/    Electron 앱
+  src/main/      Main 프로세스: services/(파일IO·DB·인덱싱·asset) ipc/ protocol/(rememo-asset://) database/(SQLite)
+  src/preload/   contextBridge로 안전 API 노출
+  src/shared/ipc/ main·preload·renderer 공유 IPC 타입(type-only, 도메인별 파일+배럴)
+  src/renderer/src/ React UI: pages/ components/ stores/(Zustand) utils/(순수) api/(preload 래퍼)
 ```
 
-### ★ 진실의 원천 규칙 (가장 중요)
-- **도메인 타입/에러/파서는 오직 `packages/core`에만 정의한다.**
-- 마크다운을 **읽는 것**뿐 아니라 **쓰는(직렬화) 로직도 core에 둔다.** 예) `parser/link-editor.ts`의 `addWikiLink`/`removeWikiLink`/`hasWikiLink`는 문자열→문자열 순수 함수로, 그래프에서 관계를 추가/삭제할 때 노트 본문을 변형한다(파일 IO는 main의 service가 담당).
-- desktop·cli 모두 반드시 `import ... from '@memograph/core'`로 가져온다. (`packages/core/src/index.ts`가 배럴)
-- **`apps/desktop/src/main`이나 `packages/cli` 안에 domain/parser를 복붙하지 말 것.** (과거에 유령 사본이 있었고 파서가 갈라져 버그를 낳았다 — 제거 완료.) cli의 `graph.ts`는 링크 파싱을 core `MarkdownParser`로 하고, 링크 해석(`resolveTarget`)만 desktop `indexer.service.resolveLinkPath`의 규칙(제목 완전일치 → 상대경로)을 파일 기반으로 재현한다. 이 해석 규칙을 바꾸면 양쪽을 함께 맞춘다.
-- core는 vite alias(`vite.config.ts`)와 tsconfig `paths`로 **소스에서 직접** 해석된다(desktop·타입체크·vitest). desktop의 vite 빌드에서 main·preload는 각 서브빌드의 alias로, **renderer도 top-level `resolve.alias`에 `@memograph/core`→소스**를 두어 소스로 해석한다. ⚠️ **renderer가 core에서 런타임 값(함수/클래스)을 import하려면 이 alias가 필수다** — 없으면 core를 dist(CJS)로 해석하는데, rollup이 dist의 `__exportStar` 재export를 통한 named 런타임 export를 정적 추적하지 못해 "not exported by index.js"로 빌드가 깨진다(타입만 import할 땐 값이 erase돼 드러나지 않았음). **단 cli 빌드(`tsc`)는 예외** — `tsconfig.build.json`에서 `paths`를 비워 core를 node_modules의 빌드 산출물(dist)로 해석하므로 core를 먼저 빌드해야 한다(루트 `build` 스크립트가 core→cli 순서 보장). cli 타입체크(`tsconfig.json`)는 다른 워크스페이스처럼 소스에서 해석한다.
+### ★ 진실의 원천 = `packages/core` (가장 중요)
+- **도메인 타입/에러/파서(읽기+쓰기 직렬화)는 오직 core에.** desktop·cli는 `@memograph/core`(배럴)로만 import. **main/cli에 domain/parser 복붙 금지**(과거 유령 사본이 파서를 갈라 버그 유발).
+- cli `graph.ts`: 링크 파싱=core `MarkdownParser`, 링크 해석(`resolveTarget`)만 desktop `indexer.service.resolveLinkPath` 규칙(제목 완전일치→상대경로)을 파일 기반 재현. **이 규칙 바꾸면 양쪽 함께.**
+- core는 vite alias + tsconfig `paths`로 **소스에서 직접** 해석(desktop·타입체크·vitest). ⚠️ **renderer의 top-level `resolve.alias`에 `@memograph/core`→소스가 필수** — 없으면 dist(CJS)로 해석돼 rollup이 `__exportStar` named 런타임 export를 못 추적해 빌드 깨짐("not exported by index.js"). **예외: cli 빌드(`tsc`)**는 `tsconfig.build.json`에서 `paths`를 비워 dist로 해석 → core 먼저 빌드(루트 `build`가 core→cli 순서 보장).
+
+### UI 셸 / 디자인
+- **셸 레이아웃**: 볼트 오픈 후 `App`은 `app-shell = [좌측 NavRail][app-main]`. `NavRail`(`components/NavRail.tsx`)은 아이콘만 있는 세로 내비(에디터/그래프/검색/할일 + 하단 설정/도움말), hover 시 한글 툴팁(`::after` + `data-label`). 볼트 선택 전에는 레일 없이 `VaultPage`만. **새 최상위 화면을 추가하면 NavRail 아이템·`NavPage` 유니온·App `renderPage`를 함께 갱신**한다.
+- **밀도/헤더**: 옵시디언식으로 촘촘하게 — 각 페이지 상단은 얇은 헤더(≈40px, 작은 제목 `0.82rem`/text-secondary). 노트 본문(에디터·프리뷰)은 읽기 편하게 두고 크롬(헤더·사이드바·툴바·레일)만 조인다. 새 화면도 이 톤을 따른다.
 
 ### 데이터 흐름 (한 방향)
-```
-renderer (React) → api/electron-api → preload(contextBridge) → ipc.handle → service → 파일/DB
-```
-- renderer는 Node API에 직접 접근하지 않는다. 반드시 preload가 노출한 `window.electronAPI`를 통한다.
-- 노트 변경(생성/수정/삭제/이름변경) 시 핸들러가 **indexer 재인덱싱**을 명시적으로 트리거한다. 새 뮤테이션을 추가하면 인덱스 갱신도 함께 처리한다. (이미지 asset은 링크/엔티티 인덱싱 대상이 아니므로 `asset:save-image`는 재인덱싱을 트리거하지 않는다.)
-- **그래프에서 노드 간 관계(WikiLink) 편집**: `link:add`/`link:remove`(main/services/link.service.ts + ipc/link.handlers.ts)가 source 노트 본문을 core의 링크 직렬화 함수로 변형해 파일에 쓴다. 이 역시 노트 뮤테이션이므로 `markInternalChange` + 재인덱싱을 트리거한다(note:update와 동일 패턴). 그래프 엣지는 `getGraphData`가 `linkType`(`wiki_link`=명시적·삭제 가능 / `entity_mention`=자동 감지·그래프에서 삭제 불가)을 함께 내려 renderer가 편집 가능 여부를 구분한다. 대상 노트가 에디터에서 미저장(`note.store`의 `dirtyNotePath`) 상태면 편집 유실 방지를 위해 경고 후 막는다.
-- **카테고리 = 폴더**: 카테고리는 별도 DB 컬럼이 아니라 **vault의 물리적 폴더**다(옵시디언 모델, 파일시스템이 진실의 원천). 계층은 `Note.path`에 이미 보존되고, core `buildNoteTree`(순수)가 노트 경로+폴더 경로로 트리를 만든다. **Sidebar가 이 트리를 접기/펼치기 UI로 렌더**하고, 노트를 카테고리로 드래그하면 `note:rename`(파일 이동)으로 옮긴다. 카테고리 CRUD는 `category:list/create/rename/delete`(main/services/category.service.ts + ipc/category.handlers.ts, shared/ipc/category.ts): create=빈 폴더 mkdir, delete=**빈 카테고리만**(노트 있으면 `CategoryNotEmptyError`), rename=폴더 이동. **rename은 하위 노트 다수의 경로가 한꺼번에 바뀌므로** old/new 노트 경로를 모두 `markInternalChange`한 뒤 `indexVault`로 전체 재빌드한다(WikiLink는 제목 기반이라 폴더 이동에도 안 깨짐). 빈 카테고리도 보이도록 `category:list`가 `<vault>/<notesDir>` 하위 폴더를 반환한다(Sidebar는 notes 변경 시 폴더도 함께 재로드). **외부에서 만든 빈 카테고리 폴더의 실시간 반영**: watcher가 `addDir`/`unlinkDir`도 처리해 `notifyIndexChanged`를 push한다(빈 폴더는 `.md`가 없어 파일 이벤트로는 안 잡힘). 폴더 경로 push는 `planIndexRefresh`에서 `reloadList=true`(열린 노트와 매칭 안 되니 openNote=keep)를 내고, 이는 `note.list→setNotes`(새 배열 참조)→Sidebar `[notes]` effect→`loadFolders` 캐스케이드로 이어져 폴더가 갱신된다. 앱 자신이 만든 폴더는 category 핸들러가 `markInternalChange(dirPath)`(create/delete는 dirPath, rename은 old/new 폴더 + 하위 노트 old/new 경로 모두)로 표시해 뒤이은 dir 이벤트를 무시한다. **그래프**에선 같은 카테고리 노드를 배경 박스로 감싼다(`renderer/utils/graph-categories.ts` 순수 함수로 앵커·박스 계산, `CategoryBoxNode` 컴포넌트, `getForceLayoutedElements`의 `clusterAnchors`로 카테고리별 클러스터링). 노드를 다른 박스로 드래그(드래그 종료 히트테스트)하면 그 카테고리로 이동한다. 박스는 멤버의 bounding hull이라 링크로 붙은 타 카테고리 노드가 시각적으로 겹칠 수 있다(하드 컨테인먼트 아님 — 의도적).
-- **watcher 이중 재인덱싱 방지**: chokidar watcher(`indexer.service.ts`)도 `.md` 변경 시 재인덱싱한다. **chokidar v4+는 glob 패턴을 제거**했으므로 vault 디렉터리를 통째로(재귀) 감시하고 `ignored` **함수**로 `.md`만 남긴다(디렉터리는 통과시켜 재귀 유지, `.memograph`·`node_modules` 배제). 과거 `chokidar.watch('**/*.md', {cwd})` 방식은 v5에서 glob이 literal 경로로 취급돼 **아무것도 감시하지 못하니** 되돌리지 말 것. 이벤트 콜백은 절대 경로를 받는다(`cwd` 미사용). 앱이 직접 쓴 파일은 핸들러가 이미 재인덱싱하므로, 파일 쓰기 직후 `indexerService.markInternalChange(path)`를 호출해 뒤이어 오는 watcher 이벤트(add/change/unlink)를 무시하게 한다(외부 에디터 편집만 watcher가 처리). **새 노트 뮤테이션 핸들러를 추가하면 이 `markInternalChange` 호출도 반드시 함께 넣는다**(rename처럼 old/new 두 경로가 바뀌면 둘 다 표시).
-- **실시간 UI 갱신(외부 변경 → renderer push)**: watcher가 **외부** 변경(예: Claude Code가 vault의 .md를 직접 생성/수정/삭제)을 재색인한 **직후**, `notifyIndexChanged`가 `main/notifier.ts`의 `broadcastIndexChanged`로 `webContents.send('indexer:changed', {type,path,vaultPath})`를 전 창에 push한다(단방향, `IpcResult` 봉투 없음). renderer는 `preload`의 `electronAPI.indexer.onChanged(cb)`(언구독 함수 반환)로 구독하고, App 최상위의 `useIndexAutoRefresh` 훅이 이를 받아 ~120ms 디바운스로 목록(`note.list`→`setNotes`, 그러면 GraphPage도 `[notes]` 의존으로 리로드) + 열린 노트를 갱신한다. 열린 노트는 **안전 모드**: 외부 삭제=에디터 비움, 외부 수정=미저장 없으면 즉시 재읽기·미저장 있으면 덮지 않고 배너(`note.store`의 `dirtyNotePath`/`externalChangePath`) 표시. 앱 자기 변경은 위 `markInternalChange` 억제로 push되지 않아 이중 갱신이 없다. 변경 종류·경로 판정은 순수 함수 `renderer/utils/index-refresh.ts`의 `planIndexRefresh`가 담당(단위 테스트 대상). AGENTS.md는 `isAgentGuidePath`로 push에서도 제외한다.
-- **로컬 이미지 렌더링**: `webSecurity`가 켜져 있어 프리뷰에서 `file://`로 로컬 이미지를 못 읽는다. 그래서 커스텀 스킴 `rememo-asset://`(main/protocol/)을 등록해 vault 내부 이미지 파일만 서빙한다. 프리뷰(`MarkdownPreview`)는 이미지 src를 이 URL로 변환하되, **반드시 react-markdown의 `defaultUrlTransform`을 먼저 적용**해 `javascript:` 등 위험 스킴을 새니타이즈한다. 프로토콜 핸들러는 이미지 확장자 화이트리스트 + `..` 경로탈출 차단을 적용한다.
+`renderer → api/electron-api → preload(contextBridge) → ipc.handle → service → 파일/DB`. renderer는 Node API 직접 접근 금지.
 
-### 에이전트/CLI 읽기 경로 (GUI와 별개)
-- **LLM 에이전트(Claude Code/Codex)는 SQLite 인덱스를 읽지 않는다.** vault의 `.md` 파일이 진실의 원천이고, `[[위키링크]]`·`#태그`·frontmatter가 곧 관계다. `<vault>/.memograph/index.db`는 **GUI 전용 파생 캐시**이며 앱이 꺼져 있으면 갱신되지 않는다 — 에이전트 관점에선 신뢰 대상이 아니다.
-- 따라서 헤드리스 `packages/cli`(`rememo` 명령)는 **호출 시점에 파일을 즉석 파싱**한다(항상 최신, 데몬·앱·색인 단계 불필요). `rememo context/graph/search`로 관계를 JSON/텍스트로 조회한다.
-- **에이전트 지침(AGENTS.md) 단일 원천 = `packages/core`의 `AGENT_GUIDE` 상수**(core는 순수하므로 파일 쓰기는 각 소비자가 담당). 두 경로로 vault 루트에 뿌려진다: ① **desktop이 볼트 오픈 시 자동 생성** — `vaultService.openVault`가 `ensureAgentGuide`로 없으면 쓰고 **있으면 절대 덮어쓰지 않는다**(사용자 편집 보존, 실패해도 오픈은 진행). ② `rememo init`(cli)이 수동 생성(`--force`로 덮어쓰기). 지침 문구를 바꾸면 이 상수만 고친다.
-- **볼트 루트의 `AGENTS.md`는 사용자 노트가 아닌 프로젝트 메타 파일**이므로 GUI·CLI 모두에서 노트 취급하지 않는다(목록·그래프·검색·백링크에서 제외). 루트 한정이라 하위 폴더의 동명 노트는 정상 노출된다. 파일명은 각 소비 패키지가 단일 정의: **desktop** = `note.service`의 `AGENT_GUIDE_FILE`/`isAgentGuidePath`(→ `listNotes`와 `indexerService.indexNote`[watcher 외부편집 관문] 두 곳에서 필터, vault.service 자동 생성도 재사용), **cli** = `init.ts`의 `AGENT_GUIDE_FILE`(→ `loadVault`가 즉석 로딩 시 필터).
-- 이 경로는 데스크톱 데이터 흐름(renderer→ipc→service→DB)과 **완전히 독립**이다. cli는 Electron/preload/DB를 거치지 않고 파일시스템만 읽는다(better-sqlite3 미의존 → Node ABI 재빌드 함정 없음).
+- **뮤테이션 = 재인덱싱 + markInternalChange**: 노트 생성/수정/삭제/이름변경 핸들러는 indexer 재인덱싱을 명시 트리거하고, 파일 쓰기 직후 `indexerService.markInternalChange(path)`로 뒤따르는 watcher 이벤트를 억제한다. **새 뮤테이션 핸들러 추가 시 둘 다 필수**(rename처럼 old/new 두 경로면 둘 다). (asset:save-image는 인덱싱 대상 아님 → 예외.)
+- **watcher**(`indexer.service.ts`): chokidar가 `.md` 외부 편집을 재인덱싱. **chokidar v4+는 glob 제거** → vault를 통째로 재귀 감시 + `ignored` **함수**로 `.md`만(디렉터리 통과, `.memograph`·`node_modules` 제외). 콜백은 절대경로. ⚠️ `chokidar.watch('**/*.md',{cwd})`로 되돌리지 말 것(v5에서 아무것도 감시 못 함).
+- **실시간 UI 갱신(외부 변경→push)**: 외부 변경 재색인 직후 `notifyIndexChanged`→`notifier.ts broadcastIndexChanged`가 `webContents.send('indexer:changed', {type,path,vaultPath})`(단방향, IpcResult 봉투 없음). renderer는 `electronAPI.indexer.onChanged(cb)` 구독, `useIndexAutoRefresh` 훅이 ~120ms 디바운스로 목록(`note.list`→`setNotes`→GraphPage `[notes]` 리로드)+열린 노트 갱신. 열린 노트는 **안전 모드**(외부삭제=비움, 외부수정=미저장 없으면 재읽기·있으면 배너). 판정은 순수 함수 `utils/index-refresh.ts planIndexRefresh`(테스트 대상). 앱 자기 변경은 markInternalChange로 push 안 됨. AGENTS.md는 `isAgentGuidePath`로 push 제외.
+- **그래프 관계(WikiLink) 편집**: `link:add`/`link:remove`(link.service.ts + link.handlers.ts)가 source 본문을 core 직렬화로 변형해 저장(note:update와 동일: markInternalChange+재인덱싱). 엣지는 `getGraphData`가 `linkType`(`wiki_link`=삭제 가능 / `entity_mention`=자동 감지·삭제 불가) 동봉. 대상 노트가 미저장(`note.store dirtyNotePath`)이면 경고 후 차단.
+- **카테고리 = 폴더**(별도 DB 컬럼 아님, 파일시스템이 진실). 계층은 `Note.path`에 보존, core `buildNoteTree`(순수)로 트리 → Sidebar가 접기/펼치기 렌더, 노트 드래그=`note:rename`(파일 이동). CRUD `category:list/create/rename/delete`(category.service.ts + handlers, shared/ipc/category.ts): create=빈 폴더 mkdir, delete=**빈 것만**(아니면 `CategoryNotEmptyError`), rename=폴더 이동(하위 노트 old/new 모두 markInternalChange 후 `indexVault` 전체 재빌드). `category:list`가 빈 폴더도 반환. **외부 생성 빈 폴더 반영**: watcher가 `addDir`/`unlinkDir`도 push(reloadList=true→Sidebar `[notes]`→loadFolders). 앱 생성 폴더는 핸들러가 `markInternalChange(dirPath)`로 억제. **그래프**: 같은 카테고리를 배경 박스로 감쌈(`utils/graph-categories.ts` 순수 계산 + `CategoryBoxNode` + force `clusterAnchors`), 노드를 박스로 드래그 시 이동. 박스는 bounding hull이라 타 카테고리 노드와 시각적 겹침 가능(의도적). **노드 색**=카테고리(색상)+깊이(음영), 순수 util `utils/graph-node-color.ts`(테스트 대상)로 계산해 GraphPage가 `data.color`로 주입(크기=degree는 별도). 진입 시 전체 그래프를 화면에 맞춘다: 커스텀 노드 크기 측정 전에 fitView하면 우하단 쏠림이 생기므로, `ReactFlowProvider`로 감싼 `GraphFlow`에서 `useNodesInitialized`(측정 완료)를 기다렸다가 그래프당 1회 `fitView`(`hasFitRef`, 이후엔 뷰포트 유지→사용자가 확대).
+- **테마(라이트/다크)**: 색은 전부 `renderer/src/index.css` **CSS 토큰**으로만. 다크=`:root` 기본, 라이트=`:root[data-theme='light']` 덮어쓰기(+블록별 `color-scheme`로 네이티브 위젯·스크롤바 추종). 적용은 `stores/theme.store.ts`가 `<html data-theme>` 지정: 선호(`system`/`light`/`dark`)를 `localStorage('rememo-theme')`에 저장, `system`이면 `matchMedia`로 OS 추종. 순수 함수 `resolveEffectiveTheme`(테스트 대상), `main.tsx initTheme()` + `index.html` 인라인 스크립트가 렌더 전 세팅(플래시 방지, 같은 키). SettingsPage 세그먼트로 선택, CodeMirror도 `effective` 구독. 강조=단색 블루, 그라디언트·글래스·컬러 글로우 금지. **새 UI는 색 하드코딩 말고 토큰 참조**(§2).
+- **로컬 이미지**: `webSecurity` 켜져 `file://` 불가 → 커스텀 스킴 `rememo-asset://`(main/protocol/)로 vault 내부 이미지만 서빙. `MarkdownPreview`는 src 변환 전 **react-markdown `defaultUrlTransform` 먼저 적용**(위험 스킴 새니타이즈). 핸들러는 확장자 화이트리스트 + `..` 탈출 차단.
+
+### 에이전트/CLI 읽기 경로 (GUI와 독립)
+- **LLM 에이전트는 SQLite 인덱스를 안 읽는다.** vault `.md`가 진실, `[[링크]]`·`#태그`·frontmatter가 관계. `.memograph/index.db`는 GUI 전용 파생 캐시(앱 꺼지면 미갱신) — 신뢰 대상 아님.
+- 헤드리스 cli(`rememo context/graph/search`)는 **호출 시점 즉석 파싱**(항상 최신, 데몬 불필요, better-sqlite3 미의존). Electron/preload/DB 안 거침.
+- **AGENTS.md 단일 원천 = core `AGENT_GUIDE` 상수**(파일 쓰기는 소비자 담당). ① desktop 볼트 오픈 시 `vaultService.openVault`의 `ensureAgentGuide`가 없으면 생성·**있으면 안 덮음**(실패해도 오픈 진행), ② `rememo init`(`--force`로 덮기). 문구는 이 상수만 고침.
+- **볼트 루트 `AGENTS.md`는 노트 아닌 메타 파일** → 목록·그래프·검색·백링크 제외(루트 한정, 하위 동명 노트는 정상). 파일명 정의: desktop=`note.service AGENT_GUIDE_FILE`/`isAgentGuidePath`(listNotes·indexerService.indexNote에서 필터), cli=`init.ts AGENT_GUIDE_FILE`(loadVault 필터).
 
 ---
 
 ## 2. 코드 컨벤션
 
-포맷은 **Prettier가 강제**하고(수동으로 스타일 맞추지 말 것), 규칙은 **ESLint**가 잡는다. 아래는 코드가 실제로 따르는 패턴이다.
+포맷은 **Prettier**(작은따옴표, 세미콜론, 2칸, 멀티라인 trailing comma, printWidth 100), 규칙은 **ESLint**가 강제. 수동 스타일 조정 금지.
 
-### 포맷 (`.prettierrc.json`)
-작은따옴표, 세미콜론 필수, 2칸 들여쓰기, 멀티라인 trailing comma, printWidth 100.
-
-### 네이밍 / 구조 패턴
-- **서비스**: `class XxxService {}`를 정의하고 **파일 하단에서 소문자 싱글턴을 export**한다.
-  ```ts
-  export class NoteService { /* ... */ }
-  export const noteService = new NoteService();
-  ```
-- **도메인 에러**: 전용 에러 클래스를 만든다. 예) `NoteNotFoundError`, `NoteAlreadyExistsError`. 서비스는 실패 시 이 에러를 throw한다.
-- **IPC 채널명**: `'도메인:동작'` 케밥/콜론 규칙. 예) `note:create`, `vault:open`, `note:rename`.
-- **IPC 인자**: 인자가 1개 이상인 채널은 **채널당 단일 request object**(`{ ... }`) 하나만 받는다(positional 인자 금지 — 같은 타입 인자 순서 뒤섞임 방지). 인자 0개 채널(`ping`, `system:get-platform`, `vault:select-folder`, `sync:*`의 인자 없는 것들)은 그대로 둔다. request 타입은 `apps/desktop/src/shared/ipc/`에 도메인별로 `<Domain><Action>Request`로 정의하고 **main·preload·renderer 세 계층이 동일 타입을 공유**한다(이 디렉터리는 type-only, `@memograph/core`의 도메인 타입만 type-only import).
-- **IPC 핸들러**: `setupXxxHandlers()` 함수로 묶고 `ipcMain.handle('도메인:동작', ipcHandler(async (_event, req: XxxRequest) => {...}))`로 등록, 본문에서 `req.*`를 구조분해해 서비스를 호출한다. 부수효과(재인덱싱 등)는 `try/catch`로 감싸고 실패해도 주요 응답은 반환한다.
-- **IPC 응답 봉투**: 모든 IPC 응답은 와이어에서 `IpcResult<T>`(`shared/ipc/result.ts`) 봉투로 표준화한다. main 핸들러는 `ipcHandler()`(`main/ipc/ipc-result.ts`)로 감싸 성공/실패를 봉투화하고, preload가 unwrap해 성공 시 `data`를 반환·실패 시 `error.code`를 name으로 갖는 Error를 throw한다(renderer는 기존처럼 `Promise<T>`를 받고 try/catch로 처리).
-- **main → renderer push(예외)**: 위 봉투는 `ipcMain.handle`(요청/응답)에만 적용된다. main이 renderer로 **단방향 통지**를 보낼 때는 `webContents.send('도메인:동작', payload)`(예: `indexer:changed`)를 쓰고 **`IpcResult` 봉투를 씌우지 않는다**. preload는 `on<Event>(cb) → 언구독 함수` 형태로 노출하고(예: `electronAPI.indexer.onChanged`), renderer는 훅의 `useEffect` cleanup에서 언구독한다. payload 타입도 `shared/ipc/`에 정의해 세 계층이 공유한다.
-- **타입 전용 import**는 `import type { ... }`을 쓴다.
-- **Zustand 스토어**: `interface XxxState`에 상태+액션을 함께 선언하고 `create<XxxState>((set) => ({...}))` 패턴, `useXxxStore`로 export.
-- **파일명**: 서비스 `*.service.ts`, IPC 핸들러 `*.handlers.ts`, 컴포넌트 `PascalCase.tsx`(+동명 `.css`), 스토어 `*.store.ts`.
-- 주석/문서/커밋/PR 본문은 **한국어**로 작성한다(기존 코드베이스 관례).
+- **서비스**: `class XxxService {}` 정의 후 파일 하단에서 소문자 싱글턴 export(`export const noteService = new NoteService()`).
+- **도메인 에러**: 전용 클래스(`NoteNotFoundError` 등)를 throw.
+- **IPC 채널명**: `'도메인:동작'`(`note:create`, `vault:open`).
+- **IPC 인자**: 1개 이상이면 **채널당 단일 request object**(positional 금지). 0개 채널(`ping` 등)은 그대로. 타입은 `shared/ipc/`에 `<Domain><Action>Request`로 정의해 세 계층 공유(type-only).
+- **IPC 핸들러**: `setupXxxHandlers()`로 묶고 `ipcMain.handle('도메인:동작', ipcHandler(async (_e, req: XxxRequest)=>{...}))`. 부수효과는 try/catch로 감싸 실패해도 주응답 반환.
+- **IPC 응답 봉투**: 와이어에서 `IpcResult<T>`(`shared/ipc/result.ts`)로 표준화. main은 `ipcHandler()`(`main/ipc/ipc-result.ts`)로 봉투화, preload가 unwrap(성공=data 반환/실패=`error.code`를 name으로 갖는 Error throw). renderer는 `Promise<T>`+try/catch.
+- **main→renderer push(예외)**: 단방향 통지는 `webContents.send('도메인:동작', payload)`로 **IpcResult 봉투 없이**. preload는 `on<Event>(cb)→언구독 함수`로 노출, renderer는 useEffect cleanup에서 언구독. payload 타입도 `shared/ipc/` 공유.
+- **타입 전용 import**는 `import type`.
+- **Zustand**: `interface XxxState`(상태+액션) + `create<XxxState>((set)=>({...}))`, `useXxxStore` export.
+- **파일명**: 서비스 `*.service.ts`, 핸들러 `*.handlers.ts`, 컴포넌트 `PascalCase.tsx`(+동명 `.css`), 스토어 `*.store.ts`.
+- 주석/문서/커밋/PR은 **한국어**.
 
 ### 하지 말 것
-- renderer에서 `fs`/`path`/`better-sqlite3` 직접 import 금지 (preload 경계 위반).
-- `any` 남용 금지 (ESLint가 경고한다 — 점진적으로 제거).
-- 도메인 로직을 core 대신 desktop에 새로 만들지 말 것.
+- renderer에서 `fs`/`path`/`better-sqlite3` 직접 import(preload 경계 위반).
+- `any` 남용(ESLint 경고 — 새로 늘리지 말 것).
+- 도메인 로직을 core 대신 desktop에 신설.
+- **색상 하드코딩**: hex/rgba를 컴포넌트 CSS에 직접 쓰지 말고 `index.css` 토큰(`--bg-*`/`--text-*`/`--accent-*`/`--danger-*`/`--warning-*`/`--shadow-*`/`--radius-*`)만 참조. 새 색은 토큰 먼저 정의(다크 `:root` + 라이트 `:root[data-theme='light']` 양쪽).
 
 ---
 
-## 3. 검증 명령 (Definition of Done 게이트)
+## 3. 검증 명령 (DoD 게이트)
 
-작업 완료 = 아래가 **모두 초록불**이어야 한다. 루트에서 실행한다.
+작업 완료 = 아래가 **모두 초록불**(루트에서 실행). 커밋 전 순서대로 확인:
+1. `npm run type-check` 통과
+2. `npm run lint` **에러 0**(경고는 새로 늘리지 않기)
+3. `npm run format:check` 통과(또는 `npm run format`)
+4. `npm test` 통과 + **새 로직에 단위 테스트 추가**
+5. `npm run build` 성공
+6. UI/동작 변경이면 `npm run dev`로 실제 앱 확인
+7. 아키텍처/컨벤션 변경 시 **이 CLAUDE.md 최신화**(§5 규칙)
+8. 커밋 메시지·PR 본문 작성
 
-| 목적 | 명령 |
-|---|---|
-| 타입 검사 (양 워크스페이스) | `npm run type-check` |
-| 린트 (0 errors 필수) | `npm run lint` |
-| 포맷 검사 | `npm run format:check` |
-| 포맷 자동 적용 | `npm run format` |
-| 단위 테스트 | `npm test` |
-| 테스트 watch | `npm run test:watch` |
-| 프로덕션 빌드 | `npm run build` |
-| 앱 실행(수동 확인) | `npm run dev` |
-
-### Definition of Done 체크리스트
-1. [ ] `npm run type-check` 통과
-2. [ ] `npm run lint` **에러 0** (경고는 새로 늘리지 않기)
-3. [ ] `npm run format:check` 통과 (또는 `npm run format` 적용)
-4. [ ] `npm test` 통과 + **새 로직에 대한 단위 테스트 추가**
-5. [ ] `npm run build` 성공
-6. [ ] UI/동작 변경이면 `npm run dev`로 **실제 앱에서 동작 확인**
-7. [ ] **아키텍처/컨벤션이 바뀌었으면 이 `CLAUDE.md`를 최신화** (아래 규칙 참고)
-8. [ ] 커밋 메시지·PR 본문 작성 (아래 파이프라인 8단계)
+기타: `npm run test:watch`(watch).
 
 ---
 
 ## 4. 테스트 규칙
 
-- 러너는 **Vitest** (`vitest.config.ts`). 테스트 파일은 **대상 소스 옆에** `*.test.ts`로 둔다.
-- 기본 환경은 **node**. 렌더러 컴포넌트 테스트는 파일 상단에 `// @vitest-environment jsdom` 주석으로 개별 전환한다.
-- **순수 로직(core의 도메인/파서)부터 반드시 테스트한다.** 기준 예시: `packages/core/src/parser/markdown-parser.test.ts`.
-- 한글/조사, WikiLink 경계, 엔티티 멘션처럼 이 앱 특유의 케이스를 꼭 남긴다.
-- 테스트 작성은 `test-writer` 스킬을 참고한다.
-- **E2E(Playwright)는 현재 범위 밖**이다(Electron 셋업 무거움). 도입 시 이 문서를 갱신한다.
+- 러너 **Vitest**. 테스트는 **대상 소스 옆** `*.test.ts`.
+- 기본 환경 node. 렌더러 컴포넌트는 파일 상단 `// @vitest-environment jsdom`으로 개별 전환.
+- **순수 로직(core 도메인/파서)부터 테스트.** 예: `packages/core/src/parser/markdown-parser.test.ts`.
+- 한글/조사, WikiLink 경계, 엔티티 멘션 등 앱 특유 케이스를 남긴다. 작성은 `test-writer` 스킬 참고.
+- **E2E(Playwright)는 범위 밖**(도입 시 이 문서 갱신).
 
 ---
 
-## 5. 개발 파이프라인 (모든 작업의 표준 절차)
+## 5. 개발 파이프라인
 
-`/feature` 슬래시 커맨드가 아래 8단계를 순서대로 안내한다. 수동으로 진행할 때도 이 순서를 따른다.
+`/feature` 커맨드가 8단계를 안내(수동도 동일): ①프로젝트 분석(§1) →②컨벤션 확인(§2) →③플랜(`plan` 스킬) →④플랜 리뷰(사용자 합의) →⑤코드(§2 + core 규칙) →⑥테스트(`test-writer`, §4) →⑦코드 리뷰(`code-reviewer` 서브에이전트 병렬 또는 `/code-review`) →⑧커밋·푸시(+PR).
 
-| # | 단계 | 방법 / 도구 |
-|---|---|---|
-| 1 | **프로젝트 분석** | 관련 파일·아키텍처 파악 (이 문서 §1) |
-| 2 | **컨벤션 확인** | 이 문서 §2 + 유사 기존 코드 참조 |
-| 3 | **요구사항 분석 & 플랜** | `plan` 스킬 → 계획 수립 |
-| 4 | **플랜 리뷰** | 플랜을 사용자와 합의(과설계/누락 점검) 후 착수 |
-| 5 | **코드 작성** | §2 컨벤션 준수, core 진실의 원천 규칙 준수 |
-| 6 | **테스트 작성** | `test-writer` 스킬 → 단위 테스트 (§4) |
-| 7 | **코드 리뷰** | `code-reviewer` 서브에이전트(병렬) 또는 `/code-review` |
-| 8 | **커밋 & 푸시 (+ PR)** | 아래 규칙. PR 생성은 **사용자에게 질의 후** 결정 |
+### ★ 브랜치 규칙 (필수)
+- **신규 작업은 무조건 새 브랜치 먼저 생성 후 진행. `main` 직접 작업/커밋 금지.** 코드 손대기 전 `git switch -c <타입>/<요약>`(예: `feat/...`, `fix/...`, `docs/...`). main 상태에서 요청받으면 브랜치부터 만든다. 예외: 사용자가 "main에서 해라" 명시.
 
-### ★ 브랜치 규칙 (필수 — 예외 없음)
-- **신규 작업은 무조건 새 브랜치를 먼저 생성하고 거기서 진행한다. `main`에서 직접 작업/커밋 금지.**
-- 작업 시작 시 코드에 손대기 전에 브랜치부터 만든다: `git switch -c <타입>/<요약>` (예: `feat/ci-release`, `fix/sqlite-bindings`, `docs/claude-md`).
-- 이미 `main`에 있는 상태에서 작업 요청을 받으면, **가장 먼저 브랜치를 생성**한 뒤 나머지를 진행한다.
-- 예외: 사용자가 명시적으로 "main에서 해라"라고 지시한 경우에만.
+### 커밋/PR
+- 커밋/푸시/PR은 **사용자가 요청할 때만**. PR 생성 여부는 항상 사용자 확인.
 
-### 커밋/PR 규칙
-- 기본 브랜치는 `main`. 작업은 **항상** 새 브랜치에서 한다(위 브랜치 규칙 참고).
-- 커밋/푸시/PR은 **사용자가 요청할 때만** 수행한다.
-- PR 생성 여부는 항상 사용자에게 확인한다(선택 사항).
-
-### ★ 커밋/푸시 전 CLAUDE.md 최신화 (필수)
-**아키텍처는 계속 바뀐다. 커밋/푸시 전에 이 문서가 현재 코드와 일치하는지 반드시 확인하고 갱신한다.**
-아래 중 하나라도 해당하면 이 `CLAUDE.md`를 **같은 커밋에** 함께 수정한다:
-- §1 아키텍처 지도가 바뀜 (워크스페이스/디렉터리 구조, 데이터 흐름, 진실의 원천 규칙 변경)
-- §2 컨벤션이 바뀜 (새 패턴 도입·기존 패턴 폐기, 네이밍/파일 규칙 변경)
-- §3 검증 명령·DoD 게이트가 바뀜 (스크립트 추가/삭제, 테스트 러너 변경)
-- §4 테스트 규칙이 바뀜 (E2E 도입 등)
-- §5 파이프라인·§6 제약·§7 하네스 구성이 바뀜 (스킬/커맨드/에이전트 추가·삭제)
-
-문서와 코드가 어긋나면 팀원·AI가 잘못된 전제로 개발하게 된다. **"코드만 바꾸고 문서는 나중에"는 금지.**
+### ★ 커밋 전 CLAUDE.md 최신화 (필수)
+아래가 바뀌면 **같은 커밋에** 이 문서도 수정: §1 아키텍처(구조·데이터 흐름·진실의 원천) / §2 컨벤션(패턴·네이밍·파일 규칙) / §3 DoD·스크립트 / §4 테스트 규칙 / §5~§7 파이프라인·제약·하네스. "코드만 바꾸고 문서는 나중에" 금지.
 
 ---
 
 ## 6. 알려진 제약 / 함정
 
-- **better-sqlite3는 네이티브 모듈**이다. Electron 버전과 ABI가 맞아야 하며 `asarUnpack` 처리됨. 설치 문제 시 `@electron/rebuild` 사용.
-  - **로컬 개발/빌드에는 네이티브 컴파일 툴체인이 필요하다.** Windows = Visual Studio Build Tools의 **"Desktop development with C++"** 워크로드(MSVC + Windows SDK), macOS = Xcode Command Line Tools(`xcode-select --install`).
-  - `npm install` 후 `node-v148`(Electron ABI) 바인딩이 없어 `dev`/`build`가 "Could not locate the bindings file"로 죽으면 → `npx electron-rebuild -f -w better-sqlite3`(또는 `apps/desktop`에서 `npx electron-builder install-app-deps`)로 Electron용 재빌드.
-  - **CI(GitHub Actions)에서 빌드하면 로컬 툴체인이 필요 없다** — 러너에 MSVC/Xcode가 이미 있어 재빌드가 자동으로 된다(§7 `release.yml`).
-- 자동 저장 없음(수동 `Ctrl+S`). 동시 편집 충돌 해결 없음.
-- 루트의 `test-regex.js`, `apps/desktop/src`가 아닌 `apps/desktop/check-db.js`는 **애드혹 디버그 스크립트**다. 테스트/제품 코드가 아니며 lint/prettier 대상에서 제외되어 있다. 새 코드가 이들에 의존하지 않게 한다.
-- `packages/core`는 `unified`/`remark` 의존성을 갖고 있으나 현재 커스텀 정규식 파서만 사용한다(해당 의존성은 미사용). 파서를 unified 기반으로 재작성할 때만 사용한다.
-- **앱 아이콘**: 아이콘 원본은 `apps/desktop/build/icon.svg`. `scripts/generate-icon.js`(sharp)가 여러 PNG + **멀티사이즈 `icon.ico`**(Windows용, 외부 의존성 없이 직접 ICO 패킹)를 생성한다. 빌드가 이 스크립트를 자동 실행하지 않으므로 아이콘은 커밋된 자산이며(`build/`가 `.gitignore`라 `git add -f`로 추적), 아이콘을 바꾸면 스크립트를 돌려 산출물을 함께 커밋한다. **Windows 시작표시줄은 PNG보다 멀티사이즈 `.ico`를 선호**하므로 `build.win.icon`·`BrowserWindow.icon`은 `.ico`를 쓴다. **macOS Dock은 `BrowserWindow.icon`을 무시**하므로 `app.dock.setIcon`(main/index.ts `whenReady`)으로 별도 지정한다. 프로덕션 창 아이콘이 존재하도록 `build/icon.png`·`icon.ico`를 electron-builder `files`·`asarUnpack`에 포함한다.
+- **better-sqlite3 = 네이티브 모듈**(Electron ABI 일치 필요, `asarUnpack`). 로컬 빌드에 툴체인 필요: Windows=VS Build Tools "Desktop development with C++"(MSVC+SDK), macOS=Xcode CLT. "Could not locate the bindings file"/ABI 불일치 시 → `npx electron-rebuild -f -w better-sqlite3`(또는 apps/desktop에서 `npx electron-builder install-app-deps`). ⚠️ **vitest는 시스템 Node ABI를 쓰므로** Electron용으로 빌드된 모듈을 로드하는 테스트(`schema.test.ts` 등)는 로컬에서 ABI 불일치로 실패할 수 있음(앱 자체는 정상). CI는 러너에 툴체인이 있어 자동 재빌드(§7).
+- 자동 저장 없음(수동 `Ctrl+S`), 동시 편집 충돌 해결 없음.
+- 루트 `test-regex.js`, `apps/desktop/check-db.js`는 **애드혹 디버그 스크립트**(lint/prettier 제외, 제품 코드가 의존 금지).
+- core의 `unified`/`remark`는 **미사용**(커스텀 정규식 파서만). unified 재작성 시에만 사용.
+- **앱 아이콘**: 원본 `apps/desktop/build/icon.svg`, `scripts/generate-icon.js`(sharp)가 PNG + 멀티사이즈 `icon.ico` 생성(빌드가 자동 실행 안 함 → 커밋된 자산, `build/`가 gitignore라 `git add -f`). 아이콘 변경 시 스크립트 재실행 후 산출물 함께 커밋. Windows 시작표시줄은 멀티사이즈 `.ico` 선호(`build.win.icon`·`BrowserWindow.icon`=`.ico`), macOS Dock은 `BrowserWindow.icon` 무시 → `app.dock.setIcon`(main/index.ts). `build/icon.png`·`icon.ico`는 electron-builder `files`·`asarUnpack`에 포함.
 
 ---
 
-## 7. 하네스 구성 요소 위치
+## 7. 하네스 구성 요소
 
-- 이 문서: 최상위 지침 (항상 읽힘)
-- `.claude/skills/plan/` — 요구사항 분석 & 플랜 작성 스킬 (파이프라인 3–4)
-- `.claude/skills/test-writer/` — 테스트 작성 스킬 (파이프라인 6)
-- `.claude/commands/feature.md` — 8단계 파이프라인 오케스트레이션 커맨드
-- `.claude/agents/code-reviewer.md` — 코드 리뷰 서브에이전트 (파이프라인 7, 병렬)
-- `.github/workflows/release.yml` — 크로스 플랫폼 배포 CI. `v*` 태그 push 시 windows/macOS 러너에서 빌드해 `.exe`/`.dmg`를 GitHub Release에 첨부(수동 실행 시 Artifacts). 로컬 툴체인 없이 배포 가능.
-- 빌트인 활용: `/code-review`, `/security-review`, `verify`, `run`
+- `.claude/skills/plan/` — 플랜 작성(파이프라인 3–4)
+- `.claude/skills/test-writer/` — 테스트 작성(6)
+- `.claude/commands/feature.md` — 8단계 오케스트레이션
+- `.claude/agents/code-reviewer.md` — 코드 리뷰 서브에이전트(7, 병렬)
+- `.github/workflows/release.yml` — `v*` 태그 push 시 win/macOS 빌드→`.exe`/`.dmg` Release 첨부(로컬 툴체인 불필요)
+- 빌트인: `/code-review`, `/security-review`, `verify`, `run`

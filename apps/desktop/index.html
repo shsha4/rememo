@@ -5,10 +5,27 @@
     <link
       rel="icon"
       type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1'/></linearGradient></defs><circle cx='100' cy='100' r='90' fill='url(%23grad)'/><text x='100' y='130' font-family='Arial,sans-serif' font-size='90' font-weight='bold' fill='white' text-anchor='middle'>r</text></svg>"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='90' fill='%234b83d1'/><text x='100' y='132' font-family='Arial,sans-serif' font-size='92' font-weight='bold' fill='white' text-anchor='middle'>r</text></svg>"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>rememo</title>
+    <script>
+      // 렌더 전에 테마를 적용해 라이트/다크 전환 시 화면 깜빡임을 막는다.
+      (function () {
+        try {
+          var pref = localStorage.getItem('rememo-theme');
+          var effective =
+            pref === 'light' || pref === 'dark'
+              ? pref
+              : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.dataset.theme = effective;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

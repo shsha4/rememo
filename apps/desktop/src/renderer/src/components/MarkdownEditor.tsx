@@ -4,6 +4,7 @@ import CodeMirror, { EditorView } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { electronAPI } from '../api/electron-api';
+import { useThemeStore } from '../stores/theme.store';
 import './MarkdownEditor.css';
 
 interface MarkdownEditorProps {
@@ -21,6 +22,9 @@ function imageFilesFromDataTransfer(dt: DataTransfer | null): File[] {
 }
 
 function MarkdownEditor({ value, onChange, onSave, vaultPath }: MarkdownEditorProps) {
+  // 앱 테마에 맞춰 에디터 색상도 라이트/다크로 전환한다.
+  const effectiveTheme = useThemeStore((state) => state.effective);
+
   const handleChange = useCallback(
     (val: string) => {
       onChange(val);
@@ -104,7 +108,7 @@ function MarkdownEditor({ value, onChange, onSave, vaultPath }: MarkdownEditorPr
       <CodeMirror
         value={value}
         height="100%"
-        theme={oneDark}
+        theme={effectiveTheme === 'dark' ? oneDark : 'light'}
         extensions={extensions}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

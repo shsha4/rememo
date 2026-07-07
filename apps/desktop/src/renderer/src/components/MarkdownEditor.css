@@ -19,10 +19,10 @@
 }
 
 .markdown-editor-wrapper .cm-gutters {
-  background-color: #252526;
-  border-right: 1px solid #3e3e3e;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
 }
 
 .markdown-editor-wrapper .cm-activeLineGutter {
-  background-color: #2a2a2a;
+  background-color: var(--bg-tertiary);
 }

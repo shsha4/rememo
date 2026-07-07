@@ -1,13 +1,23 @@
 import { useState } from 'react';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
+import { useThemeStore } from '../stores/theme.store';
+import type { ThemePreference } from '../stores/theme.store';
 import type { NotificationSettings } from '../types';
 import './SettingsPage.css';
 
 const DEFAULT_SETTINGS: NotificationSettings = { enabled: true, defaultTime: '09:00' };
 
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: '시스템' },
+  { value: 'light', label: '라이트' },
+  { value: 'dark', label: '다크' },
+];
+
 function SettingsPage() {
   const { currentVault, setCurrentVault } = useVaultStore();
+  const themePreference = useThemeStore((state) => state.preference);
+  const setThemePreference = useThemeStore((state) => state.setPreference);
   const initial = currentVault?.config.notifications ?? DEFAULT_SETTINGS;
 
   const [enabled, setEnabled] = useState(initial.enabled);
@@ -43,6 +53,32 @@ function SettingsPage() {
       </div>
 
       <div className="settings-content">
+        <section className="settings-section">
+          <h3>화면 테마</h3>
+
+          <div className="setting-row">
+            <div className="setting-label">
+              <span className="setting-title">테마</span>
+              <span className="setting-desc">
+                라이트/다크를 직접 고르거나, 시스템을 선택하면 운영체제 설정을 따라갑니다.
+              </span>
+            </div>
+            <div className="theme-segment" role="group" aria-label="화면 테마 선택">
+              {THEME_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`theme-option ${themePreference === option.value ? 'active' : ''}`}
+                  aria-pressed={themePreference === option.value}
+                  onClick={() => setThemePreference(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="settings-section">
           <h3>할 일 마감 알림</h3>
 
