@@ -305,3 +305,127 @@ body.resizing {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
+
+/* ─── 카테고리 트리 ─────────────────────────────────────────── */
+
+.sidebar-header-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 40px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.tree.drag-over-root {
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tree-row:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.note-row.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.category-row {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.category-row.drag-over {
+  background: rgba(99, 102, 241, 0.15);
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+}
+
+.chevron {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  width: 10px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.tree-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.category-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-actions {
+  display: flex;
+  gap: 0.1rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.category-row:hover .category-actions {
+  opacity: 0.75;
+}
+
+.category-actions .btn-edit {
+  opacity: 1;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.3rem;
+}
+
+.note-row {
+  position: relative;
+}
+
+.note-row .note-item-wrapper {
+  gap: 0.4rem;
+}
+
+.create-inline input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.create-inline input:focus {
+  outline: none;
+}

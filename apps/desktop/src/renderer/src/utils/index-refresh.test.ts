@@ -72,4 +72,15 @@ describe('planIndexRefresh', () => {
     );
     expect(plan.openNote).toBe('reread');
   });
+
+  it('빈 카테고리 폴더 추가(addDir) → 목록 재로드로 사이드바가 폴더를 다시 읽게 한다', () => {
+    // 폴더 경로는 열린 노트와 매칭되지 않으므로 openNote는 keep, reloadList만 true.
+    const plan = planIndexRefresh(ev('add', 'C:\\Users\\me\\vault\\Notes\\새카테고리'), ctx());
+    expect(plan).toEqual({ reloadList: true, openNote: 'keep' });
+  });
+
+  it('빈 카테고리 폴더 삭제(unlinkDir) → 목록 재로드', () => {
+    const plan = planIndexRefresh(ev('unlink', 'C:\\Users\\me\\vault\\Notes\\빈폴더'), ctx());
+    expect(plan).toEqual({ reloadList: true, openNote: 'keep' });
+  });
 });

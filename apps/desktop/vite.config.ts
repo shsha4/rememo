@@ -66,6 +66,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src/renderer/src'),
+      // renderer도 core를 소스에서 해석한다(main/preload와 동일). dist(CJS)로 해석하면 rollup이
+      // __exportStar 재export를 통한 런타임 값(함수/클래스)의 named export를 정적 추적하지 못해
+      // 빌드가 깨진다(타입만 import할 땐 값이 erase돼 드러나지 않았음).
+      '@memograph/core': path.resolve(__dirname, '../../packages/core/src'),
     },
   },
   server: {

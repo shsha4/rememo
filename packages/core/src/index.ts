@@ -3,6 +3,7 @@ export * from './domain/vault';
 export * from './domain/note';
 export * from './domain/link';
 export * from './domain/tag';
+export * from './domain/category';
 export * from './domain/todo';
 export * from './domain/sync';
 

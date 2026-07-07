@@ -3,6 +3,7 @@ import { ipcHandler } from './ipc-result';
 import { setupVaultHandlers } from './vault.handlers';
 import { setupNoteHandlers } from './note.handlers';
 import { setupLinkHandlers } from './link.handlers';
+import { setupCategoryHandlers } from './category.handlers';
 import { setupIndexerHandlers } from './indexer.handlers';
 import { setupSyncHandlers } from './sync.handlers';
 import { setupAssetHandlers } from './asset.handlers';
@@ -33,6 +34,9 @@ export function setupIpcHandlers() {
 
   // Link handlers (그래프에서 노드 간 관계 추가/삭제)
   setupLinkHandlers();
+
+  // Category handlers (폴더 기반 카테고리 생성/이름변경/삭제)
+  setupCategoryHandlers();
 
   // Indexer handlers
   setupIndexerHandlers();

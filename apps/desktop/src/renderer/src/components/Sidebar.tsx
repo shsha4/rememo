@@ -1,20 +1,51 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  buildNoteTree,
+  getNoteCategoryPath,
+  type TreeItem,
+  type CategoryTreeItem,
+  type NoteTreeItem,
+} from '@memograph/core';
 import { electronAPI } from '../api/electron-api';
 import { useVaultStore } from '../stores/vault.store';
 import { useNoteStore } from '../stores/note.store';
 import { useResizable } from '../hooks/useResizable';
 import './Sidebar.css';
 
+// 새로 만들 항목(노트/카테고리)의 위치와 종류. parentPath는 노트 루트 기준 상대 카테고리 경로.
+interface CreatingState {
+  parentPath: string;
+  kind: 'note' | 'category';
+}
+
+// preload가 던지는 Error는 name=error.code, message=사유. unknown에서 안전하게 뽑아 쓴다.
+function errName(e: unknown): string {
+  return e instanceof Error ? e.name : '';
+}
+function errMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 function Sidebar() {
   const { currentVault } = useVaultStore();
-  const { notes, setNotes, setCurrentNote, currentNote, triggerGraphRefresh } = useNoteStore();
-  const [isCreatingNote, setIsCreatingNote] = useState(false);
-  const [newNoteName, setNewNoteName] = useState('');
+  const { notes, setNotes, setCurrentNote, currentNote, dirtyNotePath, triggerGraphRefresh } =
+    useNoteStore();
+
+  // 빈 카테고리까지 노출하기 위한 폴더 목록(전체 경로). notes와 함께 트리를 구성한다.
+  const [folders, setFolders] = useState<string[]>([]);
+
+  const [creating, setCreating] = useState<CreatingState | null>(null);
+  const [newName, setNewName] = useState('');
   const [editingNotePath, setEditingNotePath] = useState<string | null>(null);
   const [editingNoteName, setEditingNoteName] = useState('');
-  // 입력창(새 노트/이름변경)이 DOM에 붙는 순간 포커스한다. 콜백 ref는 마운트 시 정확히 한 번
-  // 호출되므로, setTimeout 지연 포커스처럼 리마운트/재렌더와 경합해 "가끔 커서가 안 먹는" 문제가 없다.
-  // useCallback([])로 identity를 고정해 타이핑에 따른 재렌더 때 재호출되지 않게 한다.
+  const [editingCategoryPath, setEditingCategoryPath] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  // 접힌 카테고리 경로 집합(없으면 펼침). vault별로 localStorage에 영속한다.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // 드래그로 노트를 올려둔 대상 카테고리 경로(하이라이트용). 루트는 '__ROOT__'.
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+
+  // 입력창이 DOM에 붙는 순간 포커스한다(콜백 ref는 마운트 시 정확히 한 번 호출).
   const focusOnMount = useCallback((el: HTMLInputElement | null) => {
     if (el) el.focus();
   }, []);
@@ -31,14 +62,89 @@ function Sidebar() {
     storageKey: 'sidebar-width',
   });
 
+  const notesDir = currentVault?.config.defaultNoteLocation || 'Notes';
+  const vaultPath = currentVault ? currentVault.path.replace(/\\/g, '/') : '';
+  const collapseKey = currentVault ? `sidebar-collapsed:${currentVault.id}` : '';
+
+  // 카테고리 상대경로 → 절대 폴더 경로.
+  const categoryAbsPath = (relPath: string): string =>
+    relPath ? `${vaultPath}/${notesDir}/${relPath}` : `${vaultPath}/${notesDir}`;
+  // 카테고리 상대경로 + 파일명(확장자 포함) → 절대 노트 경로.
+  const noteAbsPath = (categoryRel: string, fileName: string): string =>
+    `${categoryAbsPath(categoryRel)}/${fileName}`;
+
+  const tree = useMemo<TreeItem[]>(() => {
+    if (!currentVault) return [];
+    return buildNoteTree({ notePaths: notes, folderPaths: folders, vaultPath, notesDir });
+  }, [currentVault, notes, folders, vaultPath, notesDir]);
+
+  const loadNotes = useCallback(async () => {
+    if (!currentVault) return;
+    try {
+      const noteList = await electronAPI.note.list({ vaultPath: currentVault.path });
+      setNotes(noteList);
+    } catch (error) {
+      console.error('Failed to load notes:', error);
+    }
+  }, [currentVault, setNotes]);
+
+  const loadFolders = useCallback(async () => {
+    if (!currentVault) return;
+    try {
+      const folderList = await electronAPI.category.list({
+        vaultPath: currentVault.path,
+        notesDir,
+      });
+      setFolders(folderList);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    }
+  }, [currentVault, notesDir]);
+
   useEffect(() => {
     if (currentVault) {
       loadNotes();
     }
-  }, [currentVault]);
+  }, [currentVault, loadNotes]);
+
+  // 폴더는 notes/vault가 바뀔 때마다 다시 계산한다(외부 변경 push로 notes가 갱신되는 경우도 커버).
+  useEffect(() => {
+    if (currentVault) {
+      loadFolders();
+    }
+  }, [currentVault, notes, loadFolders]);
+
+  // vault별 접힘 상태 로드.
+  useEffect(() => {
+    if (!collapseKey) return;
+    try {
+      const raw = localStorage.getItem(collapseKey);
+      setCollapsed(new Set<string>(raw ? JSON.parse(raw) : []));
+    } catch {
+      setCollapsed(new Set());
+    }
+  }, [collapseKey]);
+
+  const persistCollapsed = (next: Set<string>) => {
+    if (!collapseKey) return;
+    try {
+      localStorage.setItem(collapseKey, JSON.stringify([...next]));
+    } catch {
+      // 무시(영속 실패해도 UI는 동작)
+    }
+  };
+
+  const toggleCollapse = (path: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      persistCollapsed(next);
+      return next;
+    });
+  };
 
   // 방향키 위/아래로 노트 목록을 이동한다(활성 노트 기준, 끝에서 순환).
-  // 입력창·에디터에 포커스가 있을 땐 가로채지 않는다.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -57,8 +163,6 @@ function Sidebar() {
 
       e.preventDefault();
       const lastIndex = notes.length - 1;
-      // 연타 중에는 직전에 눌러 누적된 목표 인덱스(pendingIndexRef)를 기준으로 계산한다.
-      // (currentNote는 디바운스 때문에 아직 갱신 전이라 기준으로 쓰면 한 칸씩만 움직인다.)
       const base = pendingIndexRef.current ?? (currentNote ? notes.indexOf(currentNote.path) : -1);
       let nextIndex: number;
       if (e.key === 'ArrowDown') {
@@ -68,8 +172,6 @@ function Sidebar() {
       }
       pendingIndexRef.current = nextIndex;
 
-      // 연타는 IPC 읽기를 매번 쏘지 않고, 멈춘 뒤 마지막 목표만 한 번 연다.
-      // 이렇게 해야 뒤이은 마우스 클릭의 읽기가 방향키 읽기 뒤에 밀리지 않는다.
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
       navTimerRef.current = setTimeout(() => {
         pendingIndexRef.current = null;
@@ -82,85 +184,105 @@ function Sidebar() {
       window.removeEventListener('keydown', onKeyDown);
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
     };
-    // notes/currentNote/currentVault 변경 시 재구독되어 onKeyDown이 최신 값을 캡처한다.
   }, [notes, currentNote, currentVault]);
-
-  const loadNotes = async () => {
-    if (!currentVault) return;
-
-    try {
-      const noteList = await electronAPI.note.list({ vaultPath: currentVault.path });
-      setNotes(noteList);
-    } catch (error: any) {
-      console.error('Failed to load notes:', error);
-    }
-  };
-
-  const handleCreateNote = async () => {
-    if (!currentVault || !newNoteName.trim()) return;
-
-    try {
-      const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
-      const notePath = `${currentVault.path}/${notesDir}/${newNoteName.trim()}.md`;
-
-      const note = await electronAPI.note.create({
-        input: {
-          vaultId: currentVault.id,
-          title: newNoteName.trim(),
-          path: notePath,
-          content: `# ${newNoteName.trim()}\n\n`,
-        },
-        vaultPath: currentVault.path,
-      });
-
-      setCurrentNote(note);
-      setNewNoteName('');
-      setIsCreatingNote(false);
-      await loadNotes();
-    } catch (error: any) {
-      console.error('Failed to create note:', error);
-      alert(error.message || 'Failed to create note');
-    }
-  };
 
   const handleSelectNote = async (notePath: string) => {
     if (!currentVault) return;
-
     latestSelectRef.current = notePath;
     try {
       const note = await electronAPI.note.read({ notePath, vaultId: currentVault.id });
-      // 연속 클릭 시 이전 요청의 응답이 나중에 도착해 방금 고른 노트를 덮어쓰지 않도록,
-      // 가장 최근 요청과 일치하는 응답만 반영한다.
       if (latestSelectRef.current !== notePath) return;
       setCurrentNote(note);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to read note:', error);
-
-      // If note not found, refresh the note list
-      if (error.message?.includes('not found') || error.message?.includes('NoteNotFoundError')) {
+      const msg = errMessage(error);
+      if (errName(error) === 'NoteNotFoundError' || msg.includes('not found')) {
         alert('메모를 찾을 수 없습니다. 목록을 새로고침합니다.');
         await loadNotes();
       } else {
-        alert(error.message || '메모를 읽는데 실패했습니다');
+        alert(msg || '메모를 읽는데 실패했습니다');
       }
     }
   };
 
-  const handleRenameNote = async (oldPath: string) => {
-    if (!currentVault || !editingNoteName.trim()) return;
+  const startCreate = (kind: 'note' | 'category', parentPath: string) => {
+    setCreating({ kind, parentPath });
+    setNewName('');
+    // 대상 카테고리를 펼쳐 입력창이 보이게 한다.
+    if (parentPath) {
+      setCollapsed((prev) => {
+        if (!prev.has(parentPath)) return prev;
+        const next = new Set(prev);
+        next.delete(parentPath);
+        persistCollapsed(next);
+        return next;
+      });
+    }
+  };
+
+  const cancelCreate = () => {
+    setCreating(null);
+    setNewName('');
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!currentVault || !creating || !newName.trim()) return;
+    const name = newName.trim();
 
     try {
-      const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
-      const newPath = `${currentVault.path}/${notesDir}/${editingNoteName.trim()}.md`;
+      if (creating.kind === 'note') {
+        const notePath = noteAbsPath(creating.parentPath, `${name}.md`);
+        const note = await electronAPI.note.create({
+          input: {
+            vaultId: currentVault.id,
+            title: name,
+            path: notePath,
+            content: `# ${name}\n\n`,
+          },
+          vaultPath: currentVault.path,
+        });
+        setCurrentNote(note);
+      } else {
+        const dirPath = creating.parentPath
+          ? `${categoryAbsPath(creating.parentPath)}/${name}`
+          : `${categoryAbsPath('')}/${name}`;
+        await electronAPI.category.create({ dirPath });
+      }
+      cancelCreate();
+      await loadNotes();
+      await loadFolders();
+    } catch (error) {
+      console.error('Failed to create:', error);
+      if (errName(error) === 'CategoryAlreadyExistsError') {
+        alert('같은 이름의 카테고리가 이미 있습니다.');
+      } else if (errName(error) === 'NoteAlreadyExistsError') {
+        alert('같은 이름의 노트가 이미 있습니다.');
+      } else {
+        alert(errMessage(error) || '생성에 실패했습니다');
+      }
+    }
+  };
 
-      // Check if renaming to same name
+  const startRenameNote = (note: NoteTreeItem) => {
+    setEditingNotePath(note.path);
+    setEditingNoteName(note.title);
+  };
+
+  const handleRenameNote = async (oldPath: string) => {
+    if (!currentVault || !editingNoteName.trim()) return;
+    const name = editingNoteName.trim();
+
+    try {
+      // 이름변경은 파일명만 바꾸고 현재 카테고리(폴더)는 유지한다.
+      const dir = oldPath.slice(0, oldPath.lastIndexOf('/'));
+      const newPath = `${dir}/${name}.md`;
+
       if (oldPath === newPath) {
         setEditingNotePath(null);
         setEditingNoteName('');
         return;
       }
 
-      // Rename the file
       await electronAPI.note.rename({
         oldPath,
         newPath,
@@ -168,180 +290,404 @@ function Sidebar() {
         vaultId: currentVault.id,
       });
 
-      // Update current note if it was the one being renamed
       if (currentNote?.path === oldPath) {
-        const renamedNote = await electronAPI.note.read({
+        const renamed = await electronAPI.note.read({
           notePath: newPath,
           vaultId: currentVault.id,
         });
-        setCurrentNote(renamedNote);
+        setCurrentNote(renamed);
       }
 
       setEditingNotePath(null);
       setEditingNoteName('');
       await loadNotes();
-      // Trigger graph refresh to update entity mentions
+      await loadFolders();
       triggerGraphRefresh();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to rename note:', error);
-      alert(error.message || 'Failed to rename note');
+      alert(errMessage(error) || '노트 이름변경에 실패했습니다');
     }
   };
 
-  const handleDoubleClickNote = (notePath: string) => {
-    setEditingNotePath(notePath);
-    setEditingNoteName(getDisplayName(notePath));
+  const startRenameCategory = (cat: CategoryTreeItem) => {
+    setEditingCategoryPath(cat.path);
+    setEditingCategoryName(cat.name);
   };
 
-  const getDisplayName = (notePath: string): string => {
-    if (!currentVault) return notePath;
+  const handleRenameCategory = async (cat: CategoryTreeItem) => {
+    if (!currentVault || !editingCategoryName.trim()) return;
+    const name = editingCategoryName.trim();
 
-    // Get relative path from vault root
-    const vaultPath = currentVault.path.replace(/\\/g, '/');
-    const normalizedPath = notePath.replace(/\\/g, '/');
-    const relativePath = normalizedPath.replace(vaultPath + '/', '');
+    if (name === cat.name) {
+      setEditingCategoryPath(null);
+      setEditingCategoryName('');
+      return;
+    }
 
-    // Remove .md extension
-    const withoutExtension = relativePath.replace(/\.md$/, '');
+    const oldAbs = categoryAbsPath(cat.path);
+    const parentRel = cat.path.includes('/') ? cat.path.slice(0, cat.path.lastIndexOf('/')) : '';
+    const newAbs = parentRel
+      ? `${categoryAbsPath(parentRel)}/${name}`
+      : `${categoryAbsPath('')}/${name}`;
 
-    // Remove Notes/ prefix if it exists
-    const notesDir = currentVault.config.defaultNoteLocation || 'Notes';
-    return withoutExtension.replace(new RegExp(`^${notesDir}/`), '');
+    // 열린 노트가 이 카테고리 하위에 있고 미저장 편집이 있으면 이동으로 인한 유실 위험이 있어 막는다.
+    if (dirtyNotePath && dirtyNotePath.startsWith(oldAbs + '/')) {
+      alert(
+        '이 카테고리 안의 노트에 저장하지 않은 변경이 있어 이름을 바꿀 수 없습니다. 먼저 저장하세요.',
+      );
+      setEditingCategoryPath(null);
+      setEditingCategoryName('');
+      return;
+    }
+
+    try {
+      await electronAPI.category.rename({
+        oldPath: oldAbs,
+        newPath: newAbs,
+        vaultPath: currentVault.path,
+        vaultId: currentVault.id,
+      });
+
+      // 열린 노트가 이동됐으면 새 경로로 다시 읽는다.
+      if (currentNote && currentNote.path.startsWith(oldAbs + '/')) {
+        const moved = newAbs + currentNote.path.slice(oldAbs.length);
+        try {
+          const fresh = await electronAPI.note.read({ notePath: moved, vaultId: currentVault.id });
+          setCurrentNote(fresh);
+        } catch {
+          setCurrentNote(null);
+        }
+      }
+
+      setEditingCategoryPath(null);
+      setEditingCategoryName('');
+      await loadNotes();
+      await loadFolders();
+      triggerGraphRefresh();
+    } catch (error) {
+      console.error('Failed to rename category:', error);
+      if (errName(error) === 'CategoryAlreadyExistsError') {
+        alert('같은 이름의 카테고리가 이미 있습니다.');
+      } else {
+        alert(errMessage(error) || '카테고리 이름변경에 실패했습니다');
+      }
+    }
+  };
+
+  const handleDeleteCategory = async (cat: CategoryTreeItem) => {
+    if (!currentVault) return;
+    if (!confirm(`카테고리 '${cat.name}'을(를) 삭제할까요? (비어 있어야 삭제됩니다)`)) return;
+
+    try {
+      await electronAPI.category.delete({
+        dirPath: categoryAbsPath(cat.path),
+        vaultPath: currentVault.path,
+      });
+      await loadNotes();
+      await loadFolders();
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      if (errName(error) === 'CategoryNotEmptyError') {
+        alert('카테고리가 비어있지 않습니다. 먼저 안의 노트를 옮기거나 삭제하세요.');
+      } else {
+        alert(errMessage(error) || '카테고리 삭제에 실패했습니다');
+      }
+    }
+  };
+
+  // 드래그한 노트를 대상 카테고리(relPath)로 이동한다.
+  const handleMoveNote = async (notePath: string, targetCategoryRel: string) => {
+    if (!currentVault) return;
+
+    const currentCategory = getNoteCategoryPath(notePath, vaultPath, notesDir);
+    if (currentCategory === targetCategoryRel) return; // 이미 그 카테고리에 있음
+
+    if (dirtyNotePath === notePath) {
+      alert('저장하지 않은 변경이 있어 노트를 옮길 수 없습니다. 먼저 저장하세요.');
+      return;
+    }
+
+    const fileName = notePath.slice(notePath.lastIndexOf('/') + 1);
+    const newPath = noteAbsPath(targetCategoryRel, fileName);
+
+    try {
+      await electronAPI.note.rename({
+        oldPath: notePath,
+        newPath,
+        vaultPath: currentVault.path,
+        vaultId: currentVault.id,
+      });
+
+      if (currentNote?.path === notePath) {
+        const moved = await electronAPI.note.read({ notePath: newPath, vaultId: currentVault.id });
+        setCurrentNote(moved);
+      }
+
+      await loadNotes();
+      await loadFolders();
+      triggerGraphRefresh();
+    } catch (error) {
+      console.error('Failed to move note:', error);
+      if (errName(error) === 'NoteAlreadyExistsError') {
+        alert('대상 카테고리에 같은 이름의 노트가 이미 있습니다.');
+      } else {
+        alert(errMessage(error) || '노트 이동에 실패했습니다');
+      }
+    }
   };
 
   if (!currentVault) {
     return null;
   }
 
+  const INDENT = 14;
+
+  const renderCreateInput = (depth: number) => (
+    <div className="tree-row create-inline" style={{ paddingLeft: `${depth * INDENT + 8}px` }}>
+      <input
+        ref={focusOnMount}
+        type="text"
+        placeholder={creating?.kind === 'category' ? '새 카테고리 이름' : '새 노트 이름'}
+        value={newName}
+        onChange={(e) => setNewName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleCreateSubmit();
+          if (e.key === 'Escape') cancelCreate();
+        }}
+        onBlur={() => {
+          // 빈 값으로 포커스가 빠지면 취소한다(빈 항목 생성 방지).
+          if (!newName.trim()) cancelCreate();
+        }}
+      />
+    </div>
+  );
+
+  const renderNote = (note: NoteTreeItem, depth: number) => {
+    const isEditing = editingNotePath === note.path;
+    return (
+      <div
+        key={note.path}
+        className={`tree-row note-row ${currentNote?.path === note.path ? 'active' : ''}`}
+        style={{ paddingLeft: `${depth * INDENT + 8}px` }}
+        draggable={!isEditing}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/note-path', note.path);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onMouseDown={(e) => {
+          if (e.button !== 0) return;
+          if (isEditing) return;
+          if (navTimerRef.current) {
+            clearTimeout(navTimerRef.current);
+            navTimerRef.current = null;
+          }
+          pendingIndexRef.current = null;
+          handleSelectNote(note.path);
+        }}
+      >
+        {isEditing ? (
+          <div className="edit-note-form">
+            <input
+              ref={focusOnMount}
+              type="text"
+              value={editingNoteName}
+              onChange={(e) => setEditingNoteName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameNote(note.path);
+                if (e.key === 'Escape') {
+                  setEditingNotePath(null);
+                  setEditingNoteName('');
+                }
+              }}
+              onBlur={() => {
+                setEditingNotePath(null);
+                setEditingNoteName('');
+              }}
+            />
+          </div>
+        ) : (
+          <div className="note-item-wrapper">
+            <span className="tree-icon note-icon" aria-hidden>
+              📄
+            </span>
+            <span className="note-name">{note.title}</span>
+            <button
+              className="btn-edit"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                startRenameNote(note);
+              }}
+              title="이름 변경"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCategory = (cat: CategoryTreeItem, depth: number) => {
+    const isCollapsed = collapsed.has(cat.path);
+    const isEditing = editingCategoryPath === cat.path;
+    const isDragOver = dragOverPath === cat.path;
+
+    return (
+      <div key={`cat:${cat.path}`}>
+        <div
+          className={`tree-row category-row ${isDragOver ? 'drag-over' : ''}`}
+          style={{ paddingLeft: `${depth * INDENT + 8}px` }}
+          onClick={() => !isEditing && toggleCollapse(cat.path)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverPath(cat.path);
+          }}
+          onDragLeave={() => setDragOverPath((p) => (p === cat.path ? null : p))}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOverPath(null);
+            const notePath = e.dataTransfer.getData('text/note-path');
+            if (notePath) handleMoveNote(notePath, cat.path);
+          }}
+        >
+          <span className={`chevron ${isCollapsed ? '' : 'open'}`} aria-hidden>
+            ▶
+          </span>
+          <span className="tree-icon" aria-hidden>
+            📁
+          </span>
+          {isEditing ? (
+            <div className="edit-note-form" onClick={(e) => e.stopPropagation()}>
+              <input
+                ref={focusOnMount}
+                type="text"
+                value={editingCategoryName}
+                onChange={(e) => setEditingCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameCategory(cat);
+                  if (e.key === 'Escape') {
+                    setEditingCategoryPath(null);
+                    setEditingCategoryName('');
+                  }
+                }}
+                onBlur={() => {
+                  setEditingCategoryPath(null);
+                  setEditingCategoryName('');
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              <span className="category-name">{cat.name}</span>
+              <div className="category-actions" onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="btn-edit"
+                  title="새 노트"
+                  onClick={() => startCreate('note', cat.path)}
+                >
+                  ＋
+                </button>
+                <button
+                  className="btn-edit"
+                  title="하위 카테고리"
+                  onClick={() => startCreate('category', cat.path)}
+                >
+                  📁
+                </button>
+                <button
+                  className="btn-edit"
+                  title="이름 변경"
+                  onClick={() => startRenameCategory(cat)}
+                >
+                  ✎
+                </button>
+                <button className="btn-edit" title="삭제" onClick={() => handleDeleteCategory(cat)}>
+                  🗑
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {!isCollapsed && (
+          <>
+            {creating && creating.parentPath === cat.path && renderCreateInput(depth + 1)}
+            {cat.children.map((child) =>
+              child.type === 'category'
+                ? renderCategory(child, depth + 1)
+                : renderNote(child, depth + 1),
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <aside className="sidebar" style={{ width: `${width}px` }}>
       <div className="sidebar-header">
         <h3>{currentVault.name}</h3>
-        <button className="btn-icon" onClick={() => setIsCreatingNote(true)} title="New Note">
-          +
-        </button>
-      </div>
-
-      {isCreatingNote && (
-        <div className="create-note-form">
-          <input
-            ref={focusOnMount}
-            type="text"
-            placeholder="Note name"
-            value={newNoteName}
-            onChange={(e) => setNewNoteName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateNote();
-              if (e.key === 'Escape') {
-                setIsCreatingNote(false);
-                setNewNoteName('');
-              }
-            }}
-          />
-          <div className="form-actions-inline">
-            <button className="btn-sm btn-primary" onClick={handleCreateNote}>
-              Create
-            </button>
-            <button
-              className="btn-sm btn-secondary"
-              onClick={() => {
-                setIsCreatingNote(false);
-                setNewNoteName('');
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+        <div className="sidebar-header-actions">
+          <button
+            className="btn-icon"
+            onClick={() => startCreate('category', '')}
+            title="새 카테고리"
+          >
+            📁
+          </button>
+          <button className="btn-icon" onClick={() => startCreate('note', '')} title="새 노트">
+            ＋
+          </button>
         </div>
-      )}
+      </div>
 
       <div className="sidebar-content">
         <div className="notes-section">
           <h4>Notes ({notes.length})</h4>
-          {notes.length === 0 ? (
-            <p className="empty-message">No notes yet. Create one!</p>
-          ) : (
-            <ul className="notes-list">
-              {notes.map((notePath) => (
-                <li
-                  key={notePath}
-                  className={currentNote?.path === notePath ? 'active' : ''}
-                  // 선택은 행(li) 전체에서 받는다. 텍스트(span)에만 핸들러가 있으면 행의 패딩·여백이
-                  // 죽은 영역이 되어, 빠르게 클릭할 때 커서가 텍스트를 살짝 벗어나면 클릭이 씹힌다.
-                  onMouseDown={(e) => {
-                    if (e.button !== 0) return; // 좌클릭만
-                    if (editingNotePath === notePath) return; // 이름변경 중엔 선택하지 않음
-                    // 대기 중인 방향키 이동을 취소하고 즉시 이 노트를 연다.
-                    if (navTimerRef.current) {
-                      clearTimeout(navTimerRef.current);
-                      navTimerRef.current = null;
-                    }
-                    pendingIndexRef.current = null;
-                    handleSelectNote(notePath);
-                  }}
-                >
-                  {editingNotePath === notePath ? (
-                    <div className="edit-note-form">
-                      <input
-                        ref={focusOnMount}
-                        type="text"
-                        value={editingNoteName}
-                        onChange={(e) => setEditingNoteName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRenameNote(notePath);
-                          if (e.key === 'Escape') {
-                            setEditingNotePath(null);
-                            setEditingNoteName('');
-                          }
-                        }}
-                        onBlur={() => {
-                          setEditingNotePath(null);
-                          setEditingNoteName('');
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="note-item-wrapper">
-                      <span className="note-name">{getDisplayName(notePath)}</span>
-                      <button
-                        className="btn-edit"
-                        // 편집 버튼 클릭이 행 선택으로 번지지 않게 mousedown/click 모두 전파를 막는다.
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDoubleClickNote(notePath);
-                        }}
-                        title="Rename note"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <div
+            className={`tree ${dragOverPath === '__ROOT__' ? 'drag-over-root' : ''}`}
+            onDragOver={(e) => {
+              // 트리 빈 영역에 드롭하면 루트로 이동.
+              e.preventDefault();
+              setDragOverPath('__ROOT__');
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget === e.target) setDragOverPath(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOverPath(null);
+              const notePath = e.dataTransfer.getData('text/note-path');
+              if (notePath) handleMoveNote(notePath, '');
+            }}
+          >
+            {creating && creating.parentPath === '' && renderCreateInput(0)}
+            {tree.length === 0 && !creating ? (
+              <p className="empty-message">노트가 없습니다. 새로 만들어 보세요!</p>
+            ) : (
+              tree.map((item) =>
+                item.type === 'category' ? renderCategory(item, 0) : renderNote(item, 0),
+              )
+            )}
+          </div>
         </div>
       </div>
 
