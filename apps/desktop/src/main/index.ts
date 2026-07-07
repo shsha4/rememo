@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, nativeImage } from 'electron';
+import { app, BrowserWindow, protocol, nativeImage, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { setupIpcHandlers } from './ipc';
@@ -53,6 +53,29 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
+  });
+
+  // 네비게이션 가드: rememo는 라우터 없는 단일 페이지 앱이라 창 자체가 다른 주소로 이동하면
+  // React 앱이 통째로 사라져 빈 하얀 화면이 된다(복구 불가). 프리뷰의 링크 클릭 등으로 인한
+  // 창 이동을 모두 차단하고, 외부 http(s) 링크만 시스템 브라우저로 위임한다.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // 동일 URL로의 이동(예: dev HMR 실패 시 Vite의 location.reload() 전체 리로드)은 허용한다.
+    // 그 외의 창 이동(링크 클릭 등)은 모두 차단한다.
+    if (url === mainWindow?.webContents.getURL()) {
+      return;
+    }
+    event.preventDefault();
+    if (/^https?:\/\//i.test(url)) {
+      void shell.openExternal(url);
+    }
+  });
+
+  // target=_blank / window.open도 새 창 대신 시스템 브라우저로 보내고 앱 창 생성은 막는다.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: 'deny' };
   });
 
   if (isDev) {

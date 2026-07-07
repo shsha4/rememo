@@ -62,6 +62,32 @@
   text-decoration: underline;
 }
 
+/* 관계링크([[노트]]): 존재하는 노트로 이동. */
+.markdown-preview a.wikilink {
+  color: var(--accent-primary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0 0.1em;
+}
+
+.markdown-preview a.wikilink:hover {
+  background-color: var(--accent-soft);
+  text-decoration: none;
+}
+
+/* 미해결 관계링크: 대상 노트가 아직 없음 — 흐릿한 색 + 점선으로 구분. 클릭 시 생성. */
+.markdown-preview a.wikilink.is-unresolved {
+  color: var(--text-tertiary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+}
+
+.markdown-preview a.wikilink.is-unresolved:hover {
+  color: var(--text-secondary);
+  background-color: transparent;
+  text-decoration: underline dashed;
+}
+
 .markdown-preview code {
   background-color: var(--md-code-bg);
   padding: 0.2rem 0.4rem;

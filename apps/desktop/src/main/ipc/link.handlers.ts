@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { ipcHandler } from './ipc-result';
 import { linkService } from '../services/link.service';
 import { indexerService } from '../services/indexer.service';
-import type { LinkAddRequest, LinkRemoveRequest } from '../../shared/ipc';
+import type { LinkAddRequest, LinkRemoveRequest, LinkResolveRequest } from '../../shared/ipc';
 
 // source 노트 파일이 변경됐으므로 인덱스를 갱신한다.
 // note:update와 동일한 패턴: markInternalChange로 watcher 중복 재인덱싱을 막고,
@@ -39,6 +39,15 @@ export function setupLinkHandlers() {
       const note = await linkService.removeLink(sourceNotePath, targetTitle, vaultId);
       await reindexAfterLinkChange(sourceNotePath, vaultPath, vaultId);
       return note;
+    }),
+  );
+
+  // 읽기 전용: [[target]]을 노트 경로로 해석 + 존재 여부 반환(뮤테이션 아님 → 재인덱싱 없음).
+  ipcMain.handle(
+    'link:resolve',
+    ipcHandler(async (_event, req: LinkResolveRequest) => {
+      const { vaultPath, notePath, target } = req;
+      return indexerService.resolveLink(vaultPath, notePath, target);
     }),
   );
 }
