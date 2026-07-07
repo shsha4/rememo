@@ -12,3 +12,6 @@ export * from './parser/link-editor';
 
 // Util exports
 export * from './util/note-path';
+
+// Agent guide (AGENTS.md 본문 상수 — desktop 자동 생성 / cli init 공유)
+export * from './agent-guide';

@@ -1,0 +1,10 @@
+{
+  // 빌드 전용: core를 소스가 아니라 node_modules의 빌드 산출물(dist)에서 해석해
+  // rootDir(./src)에 CLI 소스만 포함되도록 한다. (core는 build 스크립트에서 먼저 빌드됨)
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "paths": {}
+  },
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

@@ -263,7 +263,23 @@ function Sidebar() {
           ) : (
             <ul className="notes-list">
               {notes.map((notePath) => (
-                <li key={notePath} className={currentNote?.path === notePath ? 'active' : ''}>
+                <li
+                  key={notePath}
+                  className={currentNote?.path === notePath ? 'active' : ''}
+                  // 선택은 행(li) 전체에서 받는다. 텍스트(span)에만 핸들러가 있으면 행의 패딩·여백이
+                  // 죽은 영역이 되어, 빠르게 클릭할 때 커서가 텍스트를 살짝 벗어나면 클릭이 씹힌다.
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return; // 좌클릭만
+                    if (editingNotePath === notePath) return; // 이름변경 중엔 선택하지 않음
+                    // 대기 중인 방향키 이동을 취소하고 즉시 이 노트를 연다.
+                    if (navTimerRef.current) {
+                      clearTimeout(navTimerRef.current);
+                      navTimerRef.current = null;
+                    }
+                    pendingIndexRef.current = null;
+                    handleSelectNote(notePath);
+                  }}
+                >
                   {editingNotePath === notePath ? (
                     <div className="edit-note-form">
                       <input
@@ -286,23 +302,11 @@ function Sidebar() {
                     </div>
                   ) : (
                     <div className="note-item-wrapper">
-                      <span
-                        className="note-name"
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return; // 좌클릭만
-                          // 대기 중인 방향키 이동을 취소하고 즉시 이 노트를 연다.
-                          if (navTimerRef.current) {
-                            clearTimeout(navTimerRef.current);
-                            navTimerRef.current = null;
-                          }
-                          pendingIndexRef.current = null;
-                          handleSelectNote(notePath);
-                        }}
-                      >
-                        {getDisplayName(notePath)}
-                      </span>
+                      <span className="note-name">{getDisplayName(notePath)}</span>
                       <button
                         className="btn-edit"
+                        // 편집 버튼 클릭이 행 선택으로 번지지 않게 mousedown/click 모두 전파를 막는다.
+                        onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDoubleClickNote(notePath);

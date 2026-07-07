@@ -1,11 +1,13 @@
 import type { Vault, VaultConfig } from '@memograph/core';
-import { VaultNotFoundError, VaultAlreadyExistsError } from '@memograph/core';
+import { VaultNotFoundError, VaultAlreadyExistsError, AGENT_GUIDE } from '@memograph/core';
 import { fileService } from './file.service';
 import path from 'path';
 import crypto from 'crypto';
 
 const VAULT_CONFIG_FILE = 'vault.json';
 const MEMOGRAPH_DIR = '.memograph';
+// LLM 에이전트 지침 파일. 볼트 오픈 시 없으면 자동 생성한다(있으면 절대 덮어쓰지 않음).
+const AGENT_GUIDE_FILE = 'AGENTS.md';
 
 export class VaultService {
   async createVault(vaultPath: string, name: string): Promise<Vault> {
@@ -62,6 +64,9 @@ export class VaultService {
     console.log('[VaultService] Writing vault.json to:', vaultConfigPath);
     await fileService.writeFile(vaultConfigPath, JSON.stringify(config, null, 2));
 
+    // 신규 볼트에도 에이전트 지침을 즉시 심는다(생성 경로는 openVault를 거치지 않으므로).
+    await this.ensureAgentGuide(vaultPath);
+
     console.log('[VaultService] Vault created successfully:', vault);
     return vault;
   }
@@ -98,7 +103,31 @@ export class VaultService {
       config,
     };
 
+    // 볼트가 활성화되는 단일 관문에서 에이전트 지침(AGENTS.md)을 보장한다.
+    // 실패해도 볼트 오픈 자체는 막지 않는다(부수효과).
+    await this.ensureAgentGuide(vaultPath);
+
     return vault;
+  }
+
+  /**
+   * 볼트 루트에 에이전트 지침(AGENTS.md)이 없으면 생성한다.
+   * 이미 있으면 사용자가 편집했을 수 있으므로 절대 덮어쓰지 않는다.
+   * 반환값: 실제로 새로 생성했으면 true.
+   */
+  async ensureAgentGuide(vaultPath: string): Promise<boolean> {
+    const guidePath = path.join(vaultPath, AGENT_GUIDE_FILE);
+    try {
+      if (await fileService.fileExists(guidePath)) {
+        return false;
+      }
+      await fileService.writeFile(guidePath, AGENT_GUIDE);
+      console.log('[VaultService] AGENTS.md 생성:', guidePath);
+      return true;
+    } catch (error) {
+      console.error('[VaultService] AGENTS.md 생성 실패:', error);
+      return false;
+    }
   }
 
   async updateVaultConfig(vaultPath: string, config: Partial<VaultConfig>): Promise<void> {
