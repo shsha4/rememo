@@ -70,6 +70,8 @@ function MarkdownEditor({ value, onChange, onSave, vaultPath }: MarkdownEditorPr
   const extensions = useMemo(
     () => [
       markdown({ base: markdownLanguage }),
+      // 긴 한 줄이 오른쪽에서 잘려 보이지 않도록 자동 줄바꿈한다.
+      EditorView.lineWrapping,
       EditorView.domEventHandlers({
         paste(event, view) {
           if (!vaultPath) return false;

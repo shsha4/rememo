@@ -1,13 +1,14 @@
 import type { Vault, VaultConfig } from '@memograph/core';
 import { VaultNotFoundError, VaultAlreadyExistsError, AGENT_GUIDE } from '@memograph/core';
 import { fileService } from './file.service';
+// AGENT_GUIDE_FILE은 note.service가 단일 정의(노트 목록/인덱스 제외 판정과 파일명을 한곳에서 관리).
+// 볼트 오픈 시 없으면 자동 생성한다(있으면 절대 덮어쓰지 않음).
+import { AGENT_GUIDE_FILE } from './note.service';
 import path from 'path';
 import crypto from 'crypto';
 
 const VAULT_CONFIG_FILE = 'vault.json';
 const MEMOGRAPH_DIR = '.memograph';
-// LLM 에이전트 지침 파일. 볼트 오픈 시 없으면 자동 생성한다(있으면 절대 덮어쓰지 않음).
-const AGENT_GUIDE_FILE = 'AGENTS.md';
 
 export class VaultService {
   async createVault(vaultPath: string, name: string): Promise<Vault> {

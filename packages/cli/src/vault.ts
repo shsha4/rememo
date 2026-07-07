@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { AGENT_GUIDE_FILE } from './init';
 
 // vault에서 읽어들인 한 노트. SQLite가 아니라 파일에서 즉석으로 만든 것이라 항상 최신이다.
 export interface VaultNote {
@@ -38,6 +39,10 @@ async function collect(dirPath: string, vaultRoot: string, out: VaultNote[]): Pr
       await collect(path.join(dirPath, entry.name), vaultRoot, out);
     } else if (entry.isFile() && entry.name.endsWith('.md')) {
       const fullPath = path.join(dirPath, entry.name);
+      // 볼트 루트의 지침 파일(AGENTS.md)은 노트가 아니므로 그래프/검색에서 제외한다.
+      if (fullPath === path.join(vaultRoot, AGENT_GUIDE_FILE)) {
+        continue;
+      }
       const content = await fs.readFile(fullPath, 'utf-8');
       out.push({
         path: fullPath,

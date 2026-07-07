@@ -2,6 +2,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { AGENT_GUIDE } from '@memograph/core';
 
+// LLM 에이전트 지침 파일명. 프로젝트 메타 파일이므로 노트 목록/그래프에서 제외한다(loadVault).
+export const AGENT_GUIDE_FILE = 'AGENTS.md';
+
 export interface InitResult {
   // 생성 대상 절대경로(<vault>/AGENTS.md)
   path: string;
@@ -14,7 +17,7 @@ export interface InitResult {
  * 이미 존재하고 force가 아니면 덮어쓰지 않고 written=false로 돌려준다(편집 유실 방지).
  */
 export async function writeAgentGuide(vaultPath: string, force: boolean): Promise<InitResult> {
-  const target = path.join(path.resolve(vaultPath), 'AGENTS.md');
+  const target = path.join(path.resolve(vaultPath), AGENT_GUIDE_FILE);
 
   let exists = false;
   try {
